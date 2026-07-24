@@ -327,4 +327,4 @@ The project does not record names, photographs, audio, or identifying informatio
 
 ## License
 
-A license has not yet been selected.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
