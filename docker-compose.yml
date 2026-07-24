@@ -1,0 +1,15 @@
+services:
+  database:
+    image: postgres:18
+    container_name: trail-pulse-database
+    environment:
+      POSTGRES_DB: trail_pulse
+      POSTGRES_USER: trail_pulse
+      POSTGRES_PASSWORD: development_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+volumes:
+  postgres_data:

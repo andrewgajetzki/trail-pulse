@@ -1,0 +1,22 @@
+# Environment
+.env
+.env.*
+*.env
+*.env~
+
+# Node / Expo
+node_modules/
+.expo/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# IDE and agent files
+.idea/
+.vscode/
+.claude/
+
+# OS
+.DS_Store
