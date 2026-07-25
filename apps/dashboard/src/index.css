@@ -89,15 +89,6 @@ h1 {
   font-weight: 700;
 }
 
-.trip-card button {
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 10px;
-  color: white;
-  background: #236b4e;
-  cursor: pointer;
-}
-
 .error {
   color: #a61b1b;
 }
@@ -111,4 +102,122 @@ h1 {
     justify-content: space-between;
     gap: 12px;
   }
+}
+.view-button {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 10px;
+  color: white;
+  background: #087f5b;
+  text-decoration: none;
+  text-align: center;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: #087f5b;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ride-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+
+.ride-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin: 32px 0 20px;
+}
+
+.ride-stats article {
+  padding: 16px;
+  border: 1px solid #d7dfda;
+  border-radius: 12px;
+  background: white;
+}
+
+.ride-stats span {
+  display: block;
+  margin-bottom: 6px;
+  color: #5d6d65;
+  font-size: 0.85rem;
+}
+
+.ride-stats strong {
+  font-size: 1.25rem;
+}
+
+.map-container {
+  height: 620px;
+  overflow: hidden;
+  border: 1px solid #d7dfda;
+  border-radius: 16px;
+  background: white;
+}
+
+.interaction-marker {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 7px rgb(0 0 0 / 30%);
+  font-size: 23px;
+  cursor: pointer;
+}
+
+.endpoint-marker {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  box-shadow: 0 2px 7px rgb(0 0 0 / 30%);
+}
+
+.start-marker {
+  background: #087f5b;
+}
+
+.end-marker {
+  background: #c92a2a;
+}
+
+@media (max-width: 800px) {
+  .ride-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .map-container {
+    height: 500px;
+  }
+}
+
+.map-container {
+  position: relative;
+}
+
+.map-container .maplibregl-map,
+.map-container .maplibregl-canvas-container,
+.map-container .maplibregl-canvas {
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.map-container .maplibregl-ctrl-top-right {
+  z-index: 20;
+  pointer-events: auto;
 }
