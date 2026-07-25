@@ -30,3 +30,33 @@ class TripCreated(BaseModel):
     id: int
     location_point_count: int
     interaction_count: int
+
+
+class TripSummary(BaseModel):
+    id: int
+    started_at: int
+    ended_at: int
+    location_point_count: int
+    interaction_count: int
+
+
+class LocationPointRead(BaseModel):
+    recorded_at: int
+    sequence_number: int
+    latitude: float
+    longitude: float
+    accuracy: float | None
+    speed: float | None
+    heading: float | None
+
+
+class InteractionRead(BaseModel):
+    recorded_at: int
+    latitude: float
+    longitude: float
+    interaction_type: str
+
+
+class TripDetail(TripSummary):
+    location_points: list[LocationPointRead]
+    interactions: list[InteractionRead]
