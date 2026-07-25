@@ -4,6 +4,9 @@ Trail Pulse is a mobile trip-tracking app for recording social interactions on C
 
 During a ride, the app records GPS points and lets the rider quickly log whether another trail user returned a greeting. When the ride ends, the complete trip is sent to a FastAPI backend and stored in PostgreSQL.
 
+<img width="743" height="659" alt="image" src="https://github.com/user-attachments/assets/59f98107-ae0c-4960-97f7-1597bda88f78" />
+
+
 ## Background and Motivation
 
 The idea came from regular bike rides around Calgary reservoirs and trails. On some rides, nearly everyone seems to return a greeting, smile, or nod. On other days, people appear more distracted, avoid eye contact, or do not respond.
