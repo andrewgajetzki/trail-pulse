@@ -129,7 +129,10 @@ h1 {
 
 .ride-stats {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(
+  auto-fit,
+  minmax(140px, 1fr)
+);
   gap: 12px;
   margin: 32px 0 20px;
 }

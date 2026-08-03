@@ -9,7 +9,7 @@ import Map, {
 } from "react-map-gl/maplibre";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-
+import { calculateTripMetrics } from "../tripMetrics";
 import { getTrip } from "../api";
 import type {
     Interaction,
@@ -84,6 +84,7 @@ function TripDetailPage() {
     }
 
     const trip = tripQuery.data;
+    const metrics = calculateTripMetrics(trip);
     const greetedCount = trip.interactions.filter(
         (interaction) =>
             interaction.interaction_type === "Greeted me",
@@ -201,7 +202,26 @@ function TripDetailPage() {
                     <span>Duration</span>
                     <strong>{formatDuration(trip)}</strong>
                 </article>
+                <article>
+                    <span>Distance</span>
+                    <strong>{metrics.distanceKm.toFixed(1)} km</strong>
+                </article>
 
+                <article>
+                    <span>Average speed</span>
+                    <strong>
+                        {metrics.averageSpeedKmh.toFixed(1)} km/h
+                    </strong>
+                </article>
+
+                <article>
+                    <span>Maximum speed</span>
+                    <strong>
+                        {metrics.maximumSpeedKmh === null
+                            ? "Unavailable"
+                            : `${metrics.maximumSpeedKmh.toFixed(1)} km/h`}
+                    </strong>
+                </article>
                 <article>
                     <span>Interactions</span>
                     <strong>{trip.interaction_count}</strong>
@@ -220,6 +240,14 @@ function TripDetailPage() {
                 <article>
                     <span>Greeting rate</span>
                     <strong>{responsePercentage}%</strong>
+                </article>
+
+
+                <article>
+                    <span>Interactions/km</span>
+                    <strong>
+                        {metrics.interactionsPerKm.toFixed(1)}
+                    </strong>
                 </article>
             </section>
 
