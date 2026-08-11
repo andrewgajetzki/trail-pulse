@@ -1,11 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import Map, {
     Marker,
     NavigationControl,
-    Popup,
-    type MapRef,
+    Popup
 } from "react-map-gl/maplibre";
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
