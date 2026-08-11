@@ -1,50 +1,45 @@
-# Welcome to your Expo app 👋
+# Trail Pulse Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The Trail Pulse mobile app is an Expo and React Native client for recording bike rides and trail interactions.
 
-## Get started
+## Features
 
-1. Install dependencies
+- GPS ride recording with Expo Location
+- Quick `Greeted me` and `No response` interaction logging
+- Ride history, details, metrics, and route maps
+- Native maps with route, start, finish, and interaction markers
 
-   ```bash
-   npm install
-   ```
+## Setup
 
-2. Start the app
+Start the backend from the repository root first. It must be reachable by the phone on the same local network.
 
-   ```bash
-   npx expo start
-   ```
+Create `apps/mobile/.env.local`:
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```env
+EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP/api
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then install and run Expo:
 
-## Learn more
+```bash
+npm install
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Scan the QR code with Expo Go. After installing a native dependency, restart Metro with:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npx expo start --clear
+```
 
-## Join the community
+## Routes
 
-Join our community of developers creating universal apps.
+- `app/(tabs)/index.tsx` — active ride recording
+- `app/(tabs)/history.tsx` — saved rides, newest first
+- `app/trips/[id].tsx` — ride details and route map
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## API Configuration
+
+The mobile app communicates only with the backend's `/api` routes through Caddy. Do not use `localhost` for `EXPO_PUBLIC_API_URL` when testing on a physical phone.
+
+Authentication UI has not been added to the mobile app yet. Ride creation will resume once Google sign-in supplies the authenticated user ID to the backend.

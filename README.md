@@ -88,13 +88,14 @@ git clone <repository-url>
 cd trail-pulse
 ```
 
-Create a root `.env` file:
+Copy the safe template, then replace its password and JWT secret locally:
 
-```env
-POSTGRES_DB=trail_pulse
-POSTGRES_USER=trail_pulse
-POSTGRES_PASSWORD=choose_a_secure_password
+```bash
+cp .env.example .env
+openssl rand -hex 32
 ```
+
+Set the generated value as `JWT_SECRET` in `.env`. Never commit `.env`.
 
 ### 2. Start the backend
 
@@ -181,8 +182,53 @@ All public URLs use the `/api` prefix. Caddy removes that prefix when forwarding
 }
 ```
 
+## Authentication
+
+JWT infrastructure is available for the upcoming Google sign-in work. Tokens use the Trail Pulse user ID as their `sub` claim and include an expiration (`exp`). The API reads these values from the root `.env` file:
+
+```env
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=60
+```
+
+`JWT_SECRET` is required and must never be committed. The repository includes safe placeholders in [.env.example](.env.example).
+
+`get_current_user()` is implemented but has not been applied to the existing routes yet. New ride creation is currently disabled until the Google authentication flow supplies a user ID; it will not assign new rides to the legacy user.
+
+To smoke-test token creation and validation without touching the database:
+
+```bash
+docker compose build api
+docker compose run --rm --no-deps \
+  -e JWT_SECRET='test-only-secret-that-is-at-least-32-bytes' \
+  api python -c 'from app.auth import create_access_token, decode_access_token; token = create_access_token(123); print(token); print(decode_access_token(token))'
+```
+
+The final line should print `123`.
+
+## Database Migrations
+
+Alembic owns schema changes. For an existing Trail Pulse database created before migrations, record the original schema as the baseline, then apply the ownership migration:
+
+```bash
+docker compose up -d database
+docker compose build api
+docker compose run --rm --no-deps api alembic stamp 20260811_0001
+docker compose run --rm --no-deps api alembic upgrade head
+```
+
+For a new, empty database, run only:
+
+```bash
+docker compose run --rm --no-deps api alembic upgrade head
+```
+
+The ownership migration creates `users`, adds `trips.user_id`, assigns all existing rides to a single `Legacy User`, and then enforces the foreign key without a database default for future rides.
+
 ## Database Tables
 
+- `users` stores Trail Pulse account identities and profile details.
 - `trips` stores the beginning and end of each ride.
 - `location_points` stores ordered GPS samples collected during a ride.
 - `interactions` stores greeting results with their time and location.
@@ -212,7 +258,7 @@ ORDER BY trip_id DESC, recorded_at;
 - Offline storage and automatic upload retries
 - Background GPS tracking
 - Ride filters and search
-- Authentication and private user data
+- Google sign-in integration and authenticated ride creation
 
 ## Privacy
 
