@@ -151,6 +151,8 @@ All public URLs use the `/api` prefix. Caddy removes that prefix when forwarding
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/health` | Check API and database health |
+| `POST` | `/api/auth/google` | Exchange a verified Google ID token for a Trail Pulse JWT |
+| `GET` | `/api/auth/me` | Return the user represented by a Trail Pulse JWT |
 | `POST` | `/api/trips` | Save a completed ride |
 | `GET` | `/api/trips` | List rides, most recent first |
 | `GET` | `/api/trips/{trip_id}` | Get a ride with its GPS points and interactions |
@@ -184,17 +186,28 @@ All public URLs use the `/api` prefix. Caddy removes that prefix when forwarding
 
 ## Authentication
 
-JWT infrastructure is available for the upcoming Google sign-in work. Tokens use the Trail Pulse user ID as their `sub` claim and include an expiration (`exp`). The API reads these values from the root `.env` file:
+The backend verifies Google ID tokens server-side, creates or updates the matching Trail Pulse user, and returns a Trail Pulse JWT. Tokens use the Trail Pulse user ID as their `sub` claim and include an expiration (`exp`). The API reads these values from the root `.env` file:
 
 ```env
 JWT_SECRET=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=60
+GOOGLE_CLIENT_ID=replace-with-your-google-oauth-client-id
 ```
 
 `JWT_SECRET` is required and must never be committed. The repository includes safe placeholders in [.env.example](.env.example).
 
-`get_current_user()` is implemented but has not been applied to the existing routes yet. New ride creation is currently disabled until the Google authentication flow supplies a user ID; it will not assign new rides to the legacy user.
+The mobile Google sign-in UI has not been added yet. `get_current_user()` protects `GET /api/auth/me`; existing trip routes have not been changed by the Google authentication work. New ride creation remains disabled until the mobile client supplies the authenticated user ID; it will not assign new rides to the legacy user.
+
+Google sign-in clients send only the Google ID token to `POST /api/auth/google`:
+
+```json
+{
+  "id_token": "<google-id-token>"
+}
+```
+
+The backend verifies the token signature, audience, issuer, and expiration with Google's `google-auth` library. It never accepts profile information separately from the client.
 
 To smoke-test token creation and validation without touching the database:
 

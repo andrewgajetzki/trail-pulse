@@ -47,6 +47,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-60}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
 
     command:
       - uvicorn

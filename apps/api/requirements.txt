@@ -3,3 +3,4 @@ sqlalchemy
 psycopg[binary]
 alembic
 PyJWT
+google-auth[requests]

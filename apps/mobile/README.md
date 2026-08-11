@@ -42,4 +42,4 @@ npx expo start --clear
 
 The mobile app communicates only with the backend's `/api` routes through Caddy. Do not use `localhost` for `EXPO_PUBLIC_API_URL` when testing on a physical phone.
 
-Authentication UI has not been added to the mobile app yet. Ride creation will resume once Google sign-in supplies the authenticated user ID to the backend.
+Authentication UI has not been added to the mobile app yet. The backend supports exchanging a Google ID token at `POST /api/auth/google`; ride creation will resume once the app sends the resulting Trail Pulse JWT with its requests.

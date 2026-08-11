@@ -3,9 +3,14 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select, text
 
+from .auth import create_access_token, get_current_user
 from .database import SessionLocal, engine
-from .models import Interaction, LocationPoint, Trip
+from .google_auth import GoogleTokenValidationError, verify_google_id_token
+from .models import Interaction, LocationPoint, Trip, User
 from .schemas import (
+    AuthenticatedUser,
+    GoogleAuthRequest,
+    GoogleAuthResponse,
     InteractionRead,
     LocationPointRead,
     TripCreate,
@@ -25,6 +30,69 @@ def get_authenticated_user_id() -> int:
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication is required to create a trip",
     )
+
+
+@app.post("/auth/google", response_model=GoogleAuthResponse)
+def authenticate_with_google(payload: GoogleAuthRequest) -> GoogleAuthResponse:
+    try:
+        claims = verify_google_id_token(payload.id_token)
+    except GoogleTokenValidationError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google ID token",
+        ) from None
+    except RuntimeError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication is not configured",
+        ) from None
+
+    google_subject = claims.get("sub")
+    name = claims.get("name")
+    email = claims.get("email")
+    picture_url = claims.get("picture")
+
+    if not isinstance(google_subject, str) or not google_subject:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google ID token")
+
+    if not isinstance(name, str) or not name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Google account does not include a name",
+        )
+
+    with SessionLocal.begin() as session:
+        user = session.scalar(
+            select(User).where(User.google_subject == google_subject),
+        )
+
+        if user is None:
+            user = User(
+                google_subject=google_subject,
+                name=name,
+                email=email if isinstance(email, str) else None,
+                picture_url=picture_url if isinstance(picture_url, str) else None,
+            )
+            session.add(user)
+        else:
+            user.name = name
+            user.email = email if isinstance(email, str) else None
+            user.picture_url = picture_url if isinstance(picture_url, str) else None
+
+        session.flush()
+        token = create_access_token(user.id)
+        authenticated_user = AuthenticatedUser.model_validate(user)
+
+    return GoogleAuthResponse(
+        access_token=token,
+        token_type="bearer",
+        user=authenticated_user,
+    )
+
+
+@app.get("/auth/me", response_model=AuthenticatedUser)
+def get_current_account(user: Annotated[User, Depends(get_current_user)]) -> User:
+    return user
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
@@ -190,7 +258,6 @@ def get_trip(trip_id: int) -> TripDetail:
                 for interaction in interactions
             ],
         )
-
 
 
 

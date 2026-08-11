@@ -1,6 +1,25 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str = Field(min_length=1)
+
+
+class AuthenticatedUser(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str | None
+    name: str
+    picture_url: str | None
+
+
+class GoogleAuthResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: AuthenticatedUser
 
 
 class LocationPointCreate(BaseModel):
