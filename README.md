@@ -1,69 +1,51 @@
 # Trail Pulse
 
-Trail Pulse is a mobile trip-tracking app for recording social interactions on Calgary bike trails.
+Trail Pulse is a mobile trip-tracking app for recording social interactions on Calgary bike trails. During a ride, it records GPS points and lets the rider quickly log whether another trail user returned a greeting. Completed rides are stored through a FastAPI backend in PostgreSQL.
 
-During a ride, the app records GPS points and lets the rider quickly log whether another trail user returned a greeting. When the ride ends, the complete trip is sent to a FastAPI backend and stored in PostgreSQL.
+<img width="743" height="659" alt="Trail Pulse ride screen" src="https://github.com/user-attachments/assets/59f98107-ae0c-4960-97f7-1597bda88f78" />
 
-<img width="743" height="659" alt="image" src="https://github.com/user-attachments/assets/59f98107-ae0c-4960-97f7-1597bda88f78" />
-
-
-## Background and Motivation
-
-The idea came from regular bike rides around Calgary reservoirs and trails. On some rides, nearly everyone seems to return a greeting, smile, or nod. On other days, people appear more distracted, avoid eye contact, or do not respond.
-
-Trail Pulse was created to record those observations more consistently instead of relying only on memory. By connecting each interaction to a time and location, the project can eventually explore whether greeting responses vary by route, time of day, trail traffic, weather, or other conditions.
-
-
-
-## Current Features
+## Features
 
 - Start and stop a bike ride
-- Record GPS coordinates during the ride
-- Log two interaction types:
-  - 🙂 Greeted me
-  - 😐 No response
-- Associate each interaction with a timestamp and GPS location
-- Upload completed rides to a Python API
-- Store trips, GPS points, and interactions in PostgreSQL
+- Record GPS coordinates throughout the ride
+- Log `🙂 Greeted me` and `😐 No response` interactions with their time and location
+- Upload completed rides to FastAPI and store them in PostgreSQL
+- Browse ride history in reverse chronological order
+- Open a detailed summary for each ride
+- View duration, distance, speed, interaction, and greeting-rate metrics
+- Display the route, start, finish, and interaction markers on a native map
 
-## Planned Features
+## Architecture
 
-- Ride history dashboard
-- Route overlays on an interactive map
-- Smiley and neutral markers at interaction locations
-- Trip summaries and greeting-return percentages
-- Filters by date, time, route, and interaction type
-- Offline storage and automatic upload retries
-- Background GPS tracking
-- Authentication and private user data
+```text
+Expo mobile app
+      │
+      │ HTTP /api
+      ▼
+    Caddy
+      │
+      ▼
+FastAPI ──────► PostgreSQL
+```
+
+The Expo app is the only user interface. Caddy exposes the API to devices on the local network and forwards `/api/*` requests directly to FastAPI.
 
 ## Technology
 
 ### Mobile
 
-- React Native
-- Expo
+- React Native and Expo
 - TypeScript
-- Expo Location
-- Expo Router
+- Expo Router and Expo Location
+- React Native Maps
 
 ### Backend
 
-- Python
-- FastAPI
-- SQLAlchemy
-- Psycopg
-
-### Database
-
+- Python and FastAPI
+- SQLAlchemy and Psycopg
 - PostgreSQL
+- Caddy
 - Docker Compose
-
-### Planned Dashboard
-
-- React
-- TypeScript
-- Interactive mapping library
 
 ## Project Structure
 
@@ -72,87 +54,66 @@ trail-pulse/
 ├── apps/
 │   ├── api/
 │   │   └── app/
-│   │       ├── __init__.py
 │   │       ├── database.py
 │   │       ├── main.py
 │   │       ├── models.py
 │   │       └── schemas.py
 │   └── mobile/
 │       ├── app/
-│       ├── assets/
 │       ├── components/
 │       ├── hooks/
 │       └── lib/
-│           ├── api.ts
-│           └── database.ts
+├── Caddyfile
 ├── docker-compose.yml
 └── README.md
 ```
 
 ## Prerequisites
 
-Install the following:
-
 - Git
 - Docker and Docker Compose
-- Python 3
 - Node.js and npm
 - Expo Go on an Android or iOS device
 
-The phone and development computer must be connected to the same local network when testing the mobile app against the local API.
+The phone and development computer must be connected to the same local network.
 
 ## Getting Started
 
-### 1. Clone the repository
+### 1. Configure the backend
+
+Clone the repository and enter it:
 
 ```bash
 git clone <repository-url>
 cd trail-pulse
 ```
 
-### 2. Start PostgreSQL
+Create a root `.env` file:
 
-```bash
-docker compose up -d
+```env
+POSTGRES_DB=trail_pulse
+POSTGRES_USER=trail_pulse
+POSTGRES_PASSWORD=choose_a_secure_password
 ```
 
-Confirm that the database container is running:
+### 2. Start the backend
+
+Build and start Caddy, FastAPI, and PostgreSQL:
+
+```bash
+docker compose up --build -d
+```
+
+Check the containers and API health:
 
 ```bash
 docker compose ps
+curl http://localhost/api/health
 ```
 
-### 3. Set up the Python API
+Interactive API documentation is available at `http://localhost/api/docs`.
 
-```bash
-cd apps/api
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-python -m pip install --upgrade pip
-pip install "fastapi[standard]" sqlalchemy "psycopg[binary]" alembic
-```
-
-Start the API so it is accessible from other devices on the local network:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-The API documentation is available at:
-
-```text
-http://localhost:8000/docs
-```
-
-The health endpoint is available at:
-
-```text
-http://localhost:8000/health
-```
-
-### 4. Find the computer's local IP address
+### 3. Find the computer's local IP address
 
 On Linux:
 
@@ -160,25 +121,19 @@ On Linux:
 ip route get 1.1.1.1 | awk '{print $7; exit}'
 ```
 
-Example:
+For example, the command may return `192.168.1.123`.
 
-```text
-192.168.1.123
-```
+### 4. Configure the mobile app
 
-### 5. Configure the mobile app
-
-Create `apps/mobile/.env`:
+Create `apps/mobile/.env.local` and replace the example address with the computer's local IP:
 
 ```env
-EXPO_PUBLIC_API_URL=http://192.168.1.123:8000
+EXPO_PUBLIC_API_URL=http://192.168.1.123/api
 ```
 
-Replace `192.168.1.123` with the development computer's actual local IP address.
+Environment files are ignored by Git and should not be committed.
 
-Do not commit `.env` files.
-
-### 6. Start the mobile app
+### 5. Start Expo
 
 ```bash
 cd apps/mobile
@@ -186,32 +141,20 @@ npm install
 npx expo start
 ```
 
-Scan the QR code using Expo Go.
+Scan the QR code with Expo Go. If a newly installed native dependency is not detected, restart Metro with `npx expo start --clear`.
 
 ## API
 
-### Health check
+All public URLs use the `/api` prefix. Caddy removes that prefix when forwarding requests to FastAPI.
 
-```http
-GET /health
-```
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Check API and database health |
+| `POST` | `/api/trips` | Save a completed ride |
+| `GET` | `/api/trips` | List rides, most recent first |
+| `GET` | `/api/trips/{trip_id}` | Get a ride with its GPS points and interactions |
 
-Example response:
-
-```json
-{
-  "status": "ok",
-  "database": "connected"
-}
-```
-
-### Save a trip
-
-```http
-POST /trips
-```
-
-Example request:
+### Save a ride
 
 ```json
 {
@@ -238,96 +181,43 @@ Example request:
 }
 ```
 
-Example response:
-
-```json
-{
-  "id": 1,
-  "location_point_count": 1,
-  "interaction_count": 1
-}
-```
-
 ## Database Tables
 
-### `trips`
+- `trips` stores the beginning and end of each ride.
+- `location_points` stores ordered GPS samples collected during a ride.
+- `interactions` stores greeting results with their time and location.
 
-Stores the beginning and end of each ride.
-
-### `location_points`
-
-Stores ordered GPS samples collected during a ride.
-
-### `interactions`
-
-Stores greeting results along with their time and location.
-
-## Inspecting the Database
-
-Open PostgreSQL:
+To open PostgreSQL inside its container:
 
 ```bash
-docker exec -it trail-pulse-database \
-  psql -U trail_pulse -d trail_pulse
+docker compose exec database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
-List tables:
+Useful queries:
 
 ```sql
-\dt
-```
+SELECT * FROM trips ORDER BY started_at DESC;
 
-View trips:
-
-```sql
-SELECT * FROM trips ORDER BY id DESC;
-```
-
-View GPS points:
-
-```sql
 SELECT *
 FROM location_points
 ORDER BY trip_id DESC, sequence_number;
-```
 
-View interactions:
-
-```sql
 SELECT *
 FROM interactions
 ORDER BY trip_id DESC, recorded_at;
 ```
 
-Exit PostgreSQL:
+## Planned Improvements
 
-```sql
-\q
-```
-
-## Development Status
-
-Trail Pulse is an early-stage project.
-
-The current milestone is a complete basic data flow:
-
-```text
-Start ride
-→ collect GPS points
-→ record interactions
-→ stop ride
-→ send trip to FastAPI
-→ store trip in PostgreSQL
-```
-
-The next major milestone is a web dashboard that displays saved rides and interaction markers on a map.
+- Offline storage and automatic upload retries
+- Background GPS tracking
+- Ride filters and search
+- Authentication and private user data
 
 ## Privacy
 
-Trail Pulse records the rider's route and anonymous observations about brief trail interactions.
-
-The project does not record names, photographs, audio, or identifying information about other trail users. Location data should be treated as private and protected appropriately before the app is deployed publicly.
+Trail Pulse records the rider's route and anonymous observations about brief trail interactions. It does not record names, photographs, audio, or identifying information about other trail users. Treat location data as private and protect it before deploying the app publicly.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

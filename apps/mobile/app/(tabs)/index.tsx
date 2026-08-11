@@ -14,7 +14,6 @@ import { saveTrip } from "../../lib/api";
 import {
   getSavedRideCount,
   initializeDatabase,
-  saveRide,
 } from "../../lib/database";
 
 type InteractionType = "Greeted me" | "No response";

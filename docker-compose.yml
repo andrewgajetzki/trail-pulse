@@ -6,15 +6,13 @@ services:
 
     ports:
       - "80:80"
-      - "443:443"
 
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
 
     depends_on:
-      - dashboard
+      api:
+        condition: service_healthy
 
   database:
     image: postgres:18
@@ -47,6 +45,17 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
 
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --root-path
+      - /api
+
     depends_on:
       database:
         condition: service_healthy
@@ -61,19 +70,5 @@ services:
       timeout: 5s
       retries: 10
 
-  dashboard:
-    build:
-      context: ./apps/dashboard
-      args:
-        VITE_API_URL: /api
-
-    container_name: trail-pulse-dashboard
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:

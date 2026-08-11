@@ -13,7 +13,6 @@ from .schemas import (
     TripDetail,
     TripSummary,
 )
-from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,15 +23,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Trail Pulse API",
     lifespan=lifespan,
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
-    allow_methods=["GET"],
-    allow_headers=["*"],
 )
 
 @app.get("/health")
@@ -195,7 +185,6 @@ def get_trip(trip_id: int) -> TripDetail:
                 for interaction in interactions
             ],
         )
-
 
 
 

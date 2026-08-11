@@ -15,26 +15,37 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-      }}>
-<Tabs.Screen
-  name="index"
-  options={{
-    title: "Ride",
-    tabBarIcon: ({ color }) => (
-      <IconSymbol size={28} name="bicycle" color={color} />
-    ),
-  }}
-/>
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Ride',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={28}
+              name="bicycle"
+              color={color}
+              weight={focused ? 'semibold' : 'regular'}
+            />
+          ),
+        }}
+      />
 
-<Tabs.Screen
-  name="history"
-  options={{
-    title: "History",
-    tabBarIcon: ({ color }) => (
-      <IconSymbol size={28} name="clock.fill" color={color} />
-    ),
-  }}
-/>
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              size={28}
+              name="clock.arrow.circlepath"
+              color={color}
+              weight={focused ? 'semibold' : 'regular'}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

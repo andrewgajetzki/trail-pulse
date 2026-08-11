@@ -22,7 +22,71 @@ type SavedTripResponse = {
     interaction_count: number;
 };
 
+export type TripSummary = {
+    id: number;
+    started_at: number;
+    ended_at: number;
+    location_point_count: number;
+    interaction_count: number;
+};
+
+export type LocationPoint = {
+    recorded_at: number;
+    sequence_number: number;
+    latitude: number;
+    longitude: number;
+    accuracy: number | null;
+    speed: number | null;
+    heading: number | null;
+};
+
+export type TripInteraction = {
+    recorded_at: number;
+    latitude: number;
+    longitude: number;
+    interaction_type: "Greeted me" | "No response";
+};
+
+export type TripDetail = TripSummary & {
+    location_points: LocationPoint[];
+    interactions: TripInteraction[];
+};
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+function getApiUrl() {
+    if (!API_URL) {
+        throw new Error("EXPO_PUBLIC_API_URL is not configured");
+    }
+
+    return API_URL;
+}
+
+export async function getTrips(): Promise<TripSummary[]> {
+    const response = await fetch(`${getApiUrl()}/trips`);
+
+    if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+    }
+
+    const trips: TripSummary[] = await response.json();
+
+    return trips.sort((a, b) => b.started_at - a.started_at);
+}
+
+export async function getTrip(tripId: number): Promise<TripDetail> {
+    const response = await fetch(`${getApiUrl()}/trips/${tripId}`);
+
+    if (response.status === 404) {
+        throw new Error("Ride not found");
+    }
+
+    if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+    }
+
+    return response.json();
+}
 
 export async function saveTrip({
                                    startedAt,
@@ -30,11 +94,7 @@ export async function saveTrip({
                                    locationPoints,
                                    interactions,
                                }: SaveTripArguments): Promise<SavedTripResponse> {
-    if (!API_URL) {
-        throw new Error("EXPO_PUBLIC_API_URL is not configured");
-    }
-
-    const response = await fetch(`${API_URL}/trips`, {
+    const response = await fetch(`${getApiUrl()}/trips`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
