@@ -52,6 +52,19 @@ export type TripDetail = TripSummary & {
     interactions: TripInteraction[];
 };
 
+export type AuthenticatedUser = {
+    id: number;
+    email: string | null;
+    name: string;
+    picture_url: string | null;
+};
+
+export type AuthSession = {
+    access_token: string;
+    token_type: "bearer";
+    user: AuthenticatedUser;
+};
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 function getApiUrl() {
@@ -60,6 +73,22 @@ function getApiUrl() {
     }
 
     return API_URL;
+}
+
+export async function signInWithGoogle(idToken: string): Promise<AuthSession> {
+    const response = await fetch(`${getApiUrl()}/auth/google`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id_token: idToken }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Google sign-in failed: ${response.status}`);
+    }
+
+    return response.json();
 }
 
 export async function getTrips(): Promise<TripSummary[]> {
