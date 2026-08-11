@@ -1,7 +1,29 @@
-from sqlalchemy import BigInteger, Float, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
+
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    google_subject: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=True,
+    )
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    name: Mapped[str] = mapped_column(String(255))
+    picture_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    trips: Mapped[list["Trip"]] = relationship(back_populates="user")
 
 
 class Trip(Base):
@@ -10,6 +32,12 @@ class Trip(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     started_at: Mapped[int] = mapped_column(BigInteger)
     ended_at: Mapped[int] = mapped_column(BigInteger)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        index=True,
+    )
+
+    user: Mapped[User] = relationship(back_populates="trips")
 
 
 class LocationPoint(Base):

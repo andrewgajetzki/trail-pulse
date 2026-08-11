@@ -1,9 +1,9 @@
-from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select, text
 
-from .database import Base, SessionLocal, engine
+from .database import SessionLocal, engine
 from .models import Interaction, LocationPoint, Trip
 from .schemas import (
     InteractionRead,
@@ -14,16 +14,17 @@ from .schemas import (
     TripSummary,
 )
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
-
 app = FastAPI(
     title="Trail Pulse API",
-    lifespan=lifespan,
 )
+
+
+def get_authenticated_user_id() -> int:
+    """Authentication will replace this dependency in the Google sign-in work."""
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication is required to create a trip",
+    )
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
@@ -41,7 +42,10 @@ def health_check() -> dict[str, str]:
     response_model=TripCreated,
     status_code=status.HTTP_201_CREATED,
 )
-def create_trip(payload: TripCreate) -> TripCreated:
+def create_trip(
+    payload: TripCreate,
+    user_id: Annotated[int, Depends(get_authenticated_user_id)],
+) -> TripCreated:
     if payload.ended_at <= payload.started_at:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -52,6 +56,7 @@ def create_trip(payload: TripCreate) -> TripCreated:
         trip = Trip(
             started_at=payload.started_at,
             ended_at=payload.ended_at,
+            user_id=user_id,
         )
 
         session.add(trip)
@@ -185,8 +190,6 @@ def get_trip(trip_id: int) -> TripDetail:
                 for interaction in interactions
             ],
         )
-
-
 
 
 
