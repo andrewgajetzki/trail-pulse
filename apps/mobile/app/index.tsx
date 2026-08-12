@@ -65,16 +65,14 @@ export default function LoginScreen() {
 
 function getSignInErrorMessage(error: unknown) {
   if (isErrorWithCode(error)) {
-    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      return "Google Play services is unavailable or needs an update.";
-    }
-
-    if (error.code === statusCodes.IN_PROGRESS) {
-      return "Google sign-in is already in progress.";
-    }
+    return `Google error: ${error.code} - ${error.message}`;
   }
 
-  return "Google sign-in could not be completed. Check the app and Google Cloud configuration, then try again.";
+  if (error instanceof Error) {
+    return `Error: ${error.message}`;
+  }
+
+  return `Unknown error: ${String(error)}`;
 }
 
 const styles = StyleSheet.create({

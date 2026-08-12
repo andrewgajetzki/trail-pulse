@@ -39,7 +39,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           showPlayServicesUpdateDialog: true,
         });
 
-        const response = await GoogleSignin.signIn();
+        try {
+          const response = await GoogleSignin.signIn();
+
+          if (!isSuccessResponse(response)) {
+            return { status: "cancelled" };
+          }
+
+          const idToken = response.data.idToken;
+
+          if (!idToken) {
+            throw new Error("Google did not return an ID token");
+          }
+
+          setSession(await signInWithGoogle(idToken));
+          return { status: "success" };
+        } catch (error: any) {
+          Alert.alert(
+              "Google Sign-In Error",
+              `Code: ${error?.code ?? "unknown"}\nMessage: ${error?.message ?? String(error)}`
+          );
+
+          console.error("GOOGLE SIGN-IN ERROR:", error);
+          throw error;
+        }
 
         if (!isSuccessResponse(response)) {
           return { status: "cancelled" };

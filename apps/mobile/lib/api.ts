@@ -14,6 +14,7 @@ type SaveTripArguments = {
     endedAt: number;
     locationPoints: Location.LocationObject[];
     interactions: RecordedInteraction[];
+    accessToken: string;
 };
 
 type SavedTripResponse = {
@@ -122,11 +123,13 @@ export async function saveTrip({
                                    endedAt,
                                    locationPoints,
                                    interactions,
+                                   accessToken,
                                }: SaveTripArguments): Promise<SavedTripResponse> {
     const response = await fetch(`${getApiUrl()}/trips`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
             started_at: startedAt,

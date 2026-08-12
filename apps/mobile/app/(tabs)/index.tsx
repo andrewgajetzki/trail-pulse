@@ -10,6 +10,7 @@ import {
 import * as Location from "expo-location";
 
 import { saveTrip } from "../../lib/api";
+import { useAuth } from "../../providers/auth-provider";
 
 import {
   getSavedRideCount,
@@ -26,6 +27,7 @@ type Interaction = {
 };
 
 export default function HomeScreen() {
+  const { session } = useAuth();
   const [rideActive, setRideActive] = useState(false);
   const [locationPoints, setLocationPoints] = useState<
       Location.LocationObject[]
@@ -95,6 +97,11 @@ export default function HomeScreen() {
       return;
     }
 
+    if (!session) {
+      Alert.alert("Sign in required", "Please sign in before saving a ride.");
+      return;
+    }
+
     locationSubscription.current?.remove();
     locationSubscription.current = null;
 
@@ -106,6 +113,7 @@ export default function HomeScreen() {
         endedAt: Date.now(),
         locationPoints,
         interactions,
+        accessToken: session.access_token,
       });
 
       setRideActive(false);

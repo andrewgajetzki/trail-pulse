@@ -23,15 +23,6 @@ app = FastAPI(
     title="Trail Pulse API",
 )
 
-
-def get_authenticated_user_id() -> int:
-    """Authentication will replace this dependency in the Google sign-in work."""
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication is required to create a trip",
-    )
-
-
 @app.post("/auth/google", response_model=GoogleAuthResponse)
 def authenticate_with_google(payload: GoogleAuthRequest) -> GoogleAuthResponse:
     try:
@@ -112,7 +103,7 @@ def health_check() -> dict[str, str]:
 )
 def create_trip(
     payload: TripCreate,
-    user_id: Annotated[int, Depends(get_authenticated_user_id)],
+    user: Annotated[User, Depends(get_current_user)],
 ) -> TripCreated:
     if payload.ended_at <= payload.started_at:
         raise HTTPException(
@@ -124,7 +115,7 @@ def create_trip(
         trip = Trip(
             started_at=payload.started_at,
             ended_at=payload.ended_at,
-            user_id=user_id,
+            user_id=user.id,
         )
 
         session.add(trip)
@@ -258,7 +249,6 @@ def get_trip(trip_id: int) -> TripDetail:
                 for interaction in interactions
             ],
         )
-
 
 
 
