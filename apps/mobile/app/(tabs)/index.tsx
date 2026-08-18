@@ -13,7 +13,9 @@ import {
   getObservationProfile,
   getObservationProfiles,
   ObservationProfileDetail,
+  ObservationProfile,
   ObservationType,
+  getTrips,
   saveTrip,
 } from "../../lib/api";
 import { useAuth } from "../../providers/auth-provider";
@@ -39,7 +41,9 @@ export default function HomeScreen() {
   const [currentLocation, setCurrentLocation] =
       useState<Location.LocationObject | null>(null);
   const [observations, setObservations] = useState<RecordedObservation[]>([]);
-  const [observationProfile, setObservationProfile] = useState<ObservationProfileDetail | null>(null);
+  const [profiles, setProfiles] = useState<ObservationProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const [activeProfile, setActiveProfile] = useState<ObservationProfileDetail | null>(null);
 
   const locationSubscription =
       useRef<Location.LocationSubscription | null>(null);
@@ -66,16 +70,27 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!session) return;
 
-    getObservationProfiles(session.access_token)
-      .then((profiles) => profiles.find((profile) => profile.is_active) ?? profiles[0])
-      .then((profile) => profile ? getObservationProfile(profile.id, session.access_token) : null)
-      .then(setObservationProfile)
+    Promise.all([getObservationProfiles(session.access_token), getTrips(session.access_token)])
+      .then(([allProfiles, trips]) => {
+        const activeProfiles = allProfiles.filter((profile) => profile.is_active);
+        setProfiles(activeProfiles);
+        const recentProfileId = trips[0]?.observation_profile_id;
+        setSelectedProfileId(activeProfiles.some((profile) => profile.id === recentProfileId) ? recentProfileId : activeProfiles[0]?.id ?? null);
+      })
       .catch((error) => console.error("Could not load observation profile:", error));
   }, [session]);
 
   async function startRide() {
-    if (!observationProfile) {
-      Alert.alert("Observation profile unavailable", "Please wait for your observation profile to load.");
+    if (!session || !selectedProfileId) {
+      Alert.alert("Choose a profile", "Select an observation profile before starting your ride.");
+      return;
+    }
+
+    let profile: ObservationProfileDetail;
+    try {
+      profile = await getObservationProfile(selectedProfileId, session.access_token);
+    } catch {
+      Alert.alert("Observation profile unavailable", "Please try selecting a profile again.");
       return;
     }
     const permission =
@@ -88,6 +103,7 @@ export default function HomeScreen() {
 
     setLocationPoints([]);
     setObservations([]);
+    setActiveProfile(profile);
     setRideStartedAt(Date.now());
     setRideActive(true);
 
@@ -117,7 +133,7 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!session || !observationProfile) {
+    if (!session || !activeProfile) {
       Alert.alert("Observation profile unavailable", "Please wait for your observation profile to load.");
       return;
     }
@@ -132,13 +148,14 @@ export default function HomeScreen() {
         startedAt: rideStartedAt,
         endedAt: Date.now(),
         locationPoints,
-        observationProfileId: observationProfile.id,
+        observationProfileId: activeProfile.id,
         observations,
         accessToken: session.access_token,
       });
 
       setRideActive(false);
       setRideStartedAt(null);
+      setActiveProfile(null);
 
       Alert.alert(
           "Ride saved",
@@ -201,9 +218,18 @@ export default function HomeScreen() {
         </Text>
 
         {!rideActive ? (
-            <Pressable style={styles.startButton} onPress={startRide}>
-              <Text style={styles.buttonText}>Start Ride</Text>
-            </Pressable>
+            <View style={styles.profilePicker}>
+              <Text style={styles.pickerTitle}>What are you observing?</Text>
+              {profiles.map((profile) => (
+                <Pressable key={profile.id} style={styles.profileOption} onPress={() => setSelectedProfileId(profile.id)}>
+                  <Text style={styles.radio}>{selectedProfileId === profile.id ? "●" : "○"}</Text>
+                  <Text style={styles.profileOptionLabel}>{profile.name}</Text>
+                </Pressable>
+              ))}
+              <Pressable style={styles.startButton} onPress={() => void startRide()}>
+                <Text style={styles.buttonText}>Start Ride</Text>
+              </Pressable>
+            </View>
         ) : (
             <Pressable style={styles.stopButton} onPress={stopRide}>
               <Text style={styles.buttonText}>
@@ -213,7 +239,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.interactions}>
-          {observationProfile?.types.filter((type) => type.is_active).map((type) => (
+          {activeProfile?.types.filter((type) => type.is_active).map((type) => (
             <InteractionButton
               key={type.id}
               label={`${type.icon} ${type.label}`}
@@ -286,6 +312,11 @@ const styles = StyleSheet.create({
   interactions: {
     gap: 12,
   },
+  profilePicker: { marginTop: 18 },
+  pickerTitle: { color: "#17202a", fontSize: 21, fontWeight: "800", marginBottom: 12 },
+  profileOption: { alignItems: "center", flexDirection: "row", paddingVertical: 10 },
+  radio: { color: "#167a63", fontSize: 25, marginRight: 10 },
+  profileOptionLabel: { color: "#17202a", fontSize: 17 },
   interactionButton: {
     backgroundColor: "#e5e7eb",
     padding: 28,

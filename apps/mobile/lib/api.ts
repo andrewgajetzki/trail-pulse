@@ -45,6 +45,8 @@ export type TripSummary = {
     id: number;
     started_at: number;
     ended_at: number;
+    observation_profile_id: number;
+    observation_profile_name: string;
     location_point_count: number;
     interaction_count: number;
 };

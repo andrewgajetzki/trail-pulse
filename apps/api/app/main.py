@@ -386,6 +386,8 @@ def list_trips(
                 Trip.id,
                 Trip.started_at,
                 Trip.ended_at,
+                Trip.observation_profile_id,
+                ObservationProfile.name.label("observation_profile_name"),
                 func.count(
                     func.distinct(LocationPoint.id)
                 ).label("location_point_count"),
@@ -401,6 +403,10 @@ def list_trips(
                 Observation,
                 Observation.trip_id == Trip.id,
             )
+            .join(
+                ObservationProfile,
+                ObservationProfile.id == Trip.observation_profile_id,
+            )
             .where(Trip.user_id == user.id)
             .group_by(Trip.id)
             .order_by(Trip.started_at.desc())
@@ -413,6 +419,8 @@ def list_trips(
                 id=row.id,
                 started_at=row.started_at,
                 ended_at=row.ended_at,
+                observation_profile_id=row.observation_profile_id,
+                observation_profile_name=row.observation_profile_name,
                 location_point_count=row.location_point_count,
                 interaction_count=row.interaction_count,
             )
@@ -485,7 +493,6 @@ def get_trip(
                 for observation, observation_type in observations
             ],
         )
-
 
 
 

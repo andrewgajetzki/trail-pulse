@@ -117,6 +117,8 @@ class TripSummary(BaseModel):
     id: int
     started_at: int
     ended_at: int
+    observation_profile_id: int
+    observation_profile_name: str
     location_point_count: int
     interaction_count: int
 
