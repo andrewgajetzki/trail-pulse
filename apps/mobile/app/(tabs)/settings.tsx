@@ -1,4 +1,4 @@
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -22,7 +22,7 @@ export default function SettingsScreen() {
     return () => { active = false; };
   }, [accessToken]));
 
-  if (!session) return <Redirect href="/" />;
+  if (!session) return null;
 
   const { user } = session;
   const initials = user.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
