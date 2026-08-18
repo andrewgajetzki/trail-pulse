@@ -242,7 +242,8 @@ export default function HomeScreen() {
           {activeProfile?.types.filter((type) => type.is_active).map((type) => (
             <InteractionButton
               key={type.id}
-              label={`${type.icon} ${type.label}`}
+              icon={type.icon}
+              label={type.label}
               onPress={() => recordObservation(type)}
             />
           ))}
@@ -252,17 +253,25 @@ export default function HomeScreen() {
 }
 
 type InteractionButtonProps = {
+  icon: string;
   label: string;
   onPress: () => void;
 };
 
 function InteractionButton({
+                             icon,
                              label,
                              onPress,
                            }: InteractionButtonProps) {
   return (
-      <Pressable style={styles.interactionButton} onPress={onPress}>
-        <Text style={styles.interactionText}>{label}</Text>
+      <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Record ${label}`}
+          style={({ pressed }) => [styles.interactionButton, pressed && styles.interactionButtonPressed]}
+          onPress={onPress}
+      >
+        <Text style={styles.interactionIcon}>{icon}</Text>
+        <Text numberOfLines={2} style={styles.interactionText}>{label}</Text>
       </Pressable>
   );
 }
@@ -310,6 +319,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   interactions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
   },
   profilePicker: { marginTop: 18 },
@@ -318,12 +329,29 @@ const styles = StyleSheet.create({
   radio: { color: "#167a63", fontSize: 25, marginRight: 10 },
   profileOptionLabel: { color: "#17202a", fontSize: 17 },
   interactionButton: {
-    backgroundColor: "#e5e7eb",
-    padding: 28,
-    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#e5f2ed",
+    borderColor: "#c9dfd4",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexGrow: 1,
+    flexBasis: "46%",
+    justifyContent: "center",
+    minHeight: 112,
+    padding: 12,
+  },
+  interactionButtonPressed: {
+    backgroundColor: "#cfe8dc",
+    transform: [{ scale: 0.97 }],
+  },
+  interactionIcon: {
+    fontSize: 42,
+    marginBottom: 6,
   },
   interactionText: {
-    fontSize: 24,
+    color: "#173f31",
+    fontSize: 16,
+    fontWeight: "800",
     textAlign: "center",
   },
 });
