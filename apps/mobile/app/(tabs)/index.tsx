@@ -3,6 +3,7 @@ import {
   Alert,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const [observations, setObservations] = useState<RecordedObservation[]>([]);
   const [profiles, setProfiles] = useState<ObservationProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
+  const [profileSelectorOpen, setProfileSelectorOpen] = useState(true);
   const [activeProfile, setActiveProfile] = useState<ObservationProfileDetail | null>(null);
 
   const locationSubscription =
@@ -68,16 +70,27 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      setProfiles([]);
+      setSelectedProfileId(null);
+      return;
+    }
+
+    let cancelled = false;
 
     Promise.all([getObservationProfiles(session.access_token), getTrips(session.access_token)])
       .then(([allProfiles, trips]) => {
+        if (cancelled) return;
         const activeProfiles = allProfiles.filter((profile) => profile.is_active);
         setProfiles(activeProfiles);
         const recentProfileId = trips[0]?.observation_profile_id;
         setSelectedProfileId(activeProfiles.some((profile) => profile.id === recentProfileId) ? recentProfileId : activeProfiles[0]?.id ?? null);
       })
-      .catch((error) => console.error("Could not load observation profile:", error));
+      .catch((error) => {
+        if (!cancelled) console.error("Could not load observation profile:", error);
+      });
+
+    return () => { cancelled = true; };
   }, [session]);
 
   async function startRide() {
@@ -198,7 +211,8 @@ export default function HomeScreen() {
   }
 
   return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Trail Pulse</Text>
 
         <Text style={styles.status}>
@@ -220,12 +234,16 @@ export default function HomeScreen() {
         {!rideActive ? (
             <View style={styles.profilePicker}>
               <Text style={styles.pickerTitle}>What are you observing?</Text>
-              {profiles.map((profile) => (
-                <Pressable key={profile.id} style={styles.profileOption} onPress={() => setSelectedProfileId(profile.id)}>
+              <Pressable style={styles.profileSelector} onPress={() => setProfileSelectorOpen((open) => !open)}>
+                <Text style={styles.profileSelectorText}>{profiles.find((profile) => profile.id === selectedProfileId)?.name ?? "Select profile"}</Text>
+                <Text style={styles.selectorChevron}>{profileSelectorOpen ? "⌃" : "⌄"}</Text>
+              </Pressable>
+              {profileSelectorOpen ? profiles.map((profile) => (
+                <Pressable key={profile.id} style={styles.profileOption} onPress={() => { setSelectedProfileId(profile.id); setProfileSelectorOpen(false); }}>
                   <Text style={styles.radio}>{selectedProfileId === profile.id ? "●" : "○"}</Text>
                   <Text style={styles.profileOptionLabel}>{profile.name}</Text>
                 </Pressable>
-              ))}
+              )) : null}
               <Pressable style={styles.startButton} onPress={() => void startRide()}>
                 <Text style={styles.buttonText}>Start Ride</Text>
               </Pressable>
@@ -248,6 +266,7 @@ export default function HomeScreen() {
             />
           ))}
         </View>
+      </ScrollView>
       </SafeAreaView>
   );
 }
@@ -277,7 +296,9 @@ function InteractionButton({
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
   container: {
+    flexGrow: 1,
     flex: 1,
     padding: 24,
     justifyContent: "center",
@@ -325,6 +346,8 @@ const styles = StyleSheet.create({
   },
   profilePicker: { marginTop: 18 },
   pickerTitle: { color: "#17202a", fontSize: 21, fontWeight: "800", marginBottom: 12 },
+  profileSelector: { alignItems: "center", backgroundColor: "white", borderColor: "#c9dfd4", borderRadius: 12, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 14 },
+  profileSelectorText: { color: "#17202a", fontSize: 17, fontWeight: "700" }, selectorChevron: { color: "#167a63", fontSize: 24 },
   profileOption: { alignItems: "center", flexDirection: "row", paddingVertical: 10 },
   radio: { color: "#167a63", fontSize: 25, marginRight: 10 },
   profileOptionLabel: { color: "#17202a", fontSize: 17 },

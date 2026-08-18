@@ -408,7 +408,7 @@ def list_trips(
                 ObservationProfile.id == Trip.observation_profile_id,
             )
             .where(Trip.user_id == user.id)
-            .group_by(Trip.id)
+            .group_by(Trip.id, ObservationProfile.name)
             .order_by(Trip.started_at.desc())
         )
 
@@ -493,7 +493,6 @@ def get_trip(
                 for observation, observation_type in observations
             ],
         )
-
 
 
 

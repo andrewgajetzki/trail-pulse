@@ -1,6 +1,6 @@
-import { router, useFocusEffect } from "expo-router";
+import { Redirect, router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { createObservationProfile, getObservationProfiles, ObservationProfile } from "../../lib/api";
 import { useAuth } from "../../providers/auth-provider";
@@ -12,14 +12,17 @@ export default function SettingsScreen() {
   const [addingProfile, setAddingProfile] = useState(false);
   const accessToken = session?.access_token;
 
-  const loadProfiles = useCallback(async () => {
-    if (!accessToken) return;
-    setProfiles(await getObservationProfiles(accessToken));
-  }, [accessToken]);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (accessToken) {
+      void getObservationProfiles(accessToken)
+        .then((nextProfiles) => { if (active) setProfiles(nextProfiles); })
+        .catch((error) => { if (active) console.error("Could not load profiles:", error); });
+    }
+    return () => { active = false; };
+  }, [accessToken]));
 
-  useFocusEffect(useCallback(() => { void loadProfiles().catch((error) => console.error("Could not load profiles:", error)); }, [loadProfiles]));
-
-  if (!session) return null;
+  if (!session) return <Redirect href="/" />;
 
   const { user } = session;
   const initials = user.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -40,13 +43,13 @@ export default function SettingsScreen() {
   function confirmSignOut() {
     Alert.alert("Log out?", "You’ll need to sign in again to save or view rides.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => void signOut().then(() => router.replace("/")) },
+      { text: "Log out", style: "destructive", onPress: () => void signOut() },
     ]);
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>TRAIL PULSE</Text>
         <Text style={styles.title}>Settings</Text>
         <Text style={styles.subtitle}>Your account and ride preferences.</Text>
@@ -82,13 +85,13 @@ export default function SettingsScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Log out" onPress={confirmSignOut} style={({ pressed }) => [styles.logOutButton, pressed && styles.buttonPressed]}>
           <Text style={styles.logOutText}>Log out</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f4f6f5" }, content: { flex: 1, padding: 24 },
+  container: { flex: 1, backgroundColor: "#f4f6f5" }, content: { flexGrow: 1, padding: 24 },
   eyebrow: { color: "#167a63", fontSize: 12, fontWeight: "800", letterSpacing: 1.5, marginTop: 12 }, title: { color: "#17202a", fontSize: 36, fontWeight: "800", marginTop: 6 }, subtitle: { color: "#5d6d65", fontSize: 16, lineHeight: 23, marginTop: 4 },
   profileCard: { alignItems: "center", backgroundColor: "#ffffff", borderColor: "#dce5df", borderRadius: 20, borderWidth: 1, flexDirection: "row", marginTop: 30, padding: 18 }, avatar: { backgroundColor: "#d7f2e9", borderRadius: 30, height: 60, width: 60 }, initials: { alignItems: "center", justifyContent: "center" }, initialsText: { color: "#126750", fontSize: 20, fontWeight: "800" },
   profileCopy: { flex: 1, marginLeft: 14 }, name: { color: "#17202a", fontSize: 17, fontWeight: "800" }, email: { color: "#64746c", fontSize: 13, marginTop: 4 }, connectedBadge: { alignItems: "center", flexDirection: "row", position: "absolute", right: 16, top: 14 }, connectedDot: { backgroundColor: "#22a06b", borderRadius: 4, height: 8, marginRight: 5, width: 8 }, connectedText: { color: "#397154", fontSize: 11, fontWeight: "700" },
