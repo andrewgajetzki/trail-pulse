@@ -1,6 +1,20 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class NonBlankNameModel(BaseModel):
+    @field_validator("name", "label", "icon", check_fields=False)
+    @classmethod
+    def require_non_blank_text(cls, value: str | None) -> str | None:
+        if value is None:
+            raise ValueError("must not be null")
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
 
 
 class GoogleAuthRequest(BaseModel):
@@ -20,6 +34,55 @@ class GoogleAuthResponse(BaseModel):
     access_token: str
     token_type: str
     user: AuthenticatedUser
+
+
+class ObservationTypeCreate(NonBlankNameModel):
+    label: str = Field(max_length=255)
+    icon: str = Field(max_length=32)
+    sort_order: int
+    is_active: bool = True
+
+
+class ObservationTypeUpdate(NonBlankNameModel):
+    label: str | None = Field(default=None, max_length=255)
+    icon: str | None = Field(default=None, max_length=32)
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
+class ObservationTypeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    profile_id: int
+    label: str
+    icon: str
+    sort_order: int
+    is_active: bool
+    created_at: datetime
+
+
+class ObservationProfileCreate(NonBlankNameModel):
+    name: str = Field(max_length=255)
+    is_active: bool = True
+
+
+class ObservationProfileUpdate(NonBlankNameModel):
+    name: str | None = Field(default=None, max_length=255)
+    is_active: bool | None = None
+
+
+class ObservationProfileSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    is_active: bool
+    created_at: datetime
+
+
+class ObservationProfileDetail(ObservationProfileSummary):
+    types: list[ObservationTypeRead]
 
 
 class LocationPointCreate(BaseModel):

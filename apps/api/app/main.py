@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 
 from .auth import create_access_token, get_current_user
 from .database import SessionLocal, engine
@@ -20,6 +21,13 @@ from .schemas import (
     GoogleAuthResponse,
     InteractionRead,
     LocationPointRead,
+    ObservationProfileCreate,
+    ObservationProfileDetail,
+    ObservationProfileSummary,
+    ObservationProfileUpdate,
+    ObservationTypeCreate,
+    ObservationTypeRead,
+    ObservationTypeUpdate,
     TripCreate,
     TripCreated,
     TripDetail,
@@ -73,6 +81,36 @@ def get_active_observation_profile(session, user_id: int) -> ObservationProfile:
     )
     session.flush()
     return profile
+
+
+def get_owned_profile(session, profile_id: int, user_id: int) -> ObservationProfile:
+    profile = session.scalar(
+        select(ObservationProfile).where(
+            ObservationProfile.id == profile_id,
+            ObservationProfile.user_id == user_id,
+        ),
+    )
+    if profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Observation profile not found")
+    return profile
+
+
+def get_profile_types(session, profile_id: int) -> list[ObservationType]:
+    return session.scalars(
+        select(ObservationType)
+        .where(ObservationType.profile_id == profile_id)
+        .order_by(ObservationType.sort_order, ObservationType.id),
+    ).all()
+
+
+def observation_profile_detail(session, profile: ObservationProfile) -> ObservationProfileDetail:
+    return ObservationProfileDetail(
+        id=profile.id,
+        name=profile.name,
+        is_active=profile.is_active,
+        created_at=profile.created_at,
+        types=[ObservationTypeRead.model_validate(item) for item in get_profile_types(session, profile.id)],
+    )
 
 @app.post("/auth/google", response_model=GoogleAuthResponse)
 def authenticate_with_google(payload: GoogleAuthRequest) -> GoogleAuthResponse:
@@ -145,6 +183,119 @@ def health_check() -> dict[str, str]:
         "status": "ok",
         "database": "connected",
     }
+
+
+@app.get("/observation-profiles", response_model=list[ObservationProfileSummary])
+def list_observation_profiles(
+    user: Annotated[User, Depends(get_current_user)],
+) -> list[ObservationProfileSummary]:
+    with SessionLocal() as session:
+        profiles = session.scalars(
+            select(ObservationProfile)
+            .where(ObservationProfile.user_id == user.id)
+            .order_by(ObservationProfile.is_active.desc(), ObservationProfile.name, ObservationProfile.id),
+        ).all()
+        return [ObservationProfileSummary.model_validate(profile) for profile in profiles]
+
+
+@app.post(
+    "/observation-profiles",
+    response_model=ObservationProfileDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_observation_profile(
+    payload: ObservationProfileCreate,
+    user: Annotated[User, Depends(get_current_user)],
+) -> ObservationProfileDetail:
+    try:
+        with SessionLocal.begin() as session:
+            profile = ObservationProfile(
+                user_id=user.id,
+                name=payload.name,
+                is_active=payload.is_active,
+            )
+            session.add(profile)
+            session.flush()
+            session.refresh(profile)
+            return observation_profile_detail(session, profile)
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Observation profile name already exists") from None
+
+
+@app.get("/observation-profiles/{profile_id}", response_model=ObservationProfileDetail)
+def get_observation_profile(
+    profile_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+) -> ObservationProfileDetail:
+    with SessionLocal() as session:
+        return observation_profile_detail(session, get_owned_profile(session, profile_id, user.id))
+
+
+@app.patch("/observation-profiles/{profile_id}", response_model=ObservationProfileDetail)
+def update_observation_profile(
+    profile_id: int,
+    payload: ObservationProfileUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+) -> ObservationProfileDetail:
+    try:
+        with SessionLocal.begin() as session:
+            profile = get_owned_profile(session, profile_id, user.id)
+            for field, value in payload.model_dump(exclude_unset=True).items():
+                setattr(profile, field, value)
+            session.flush()
+            session.refresh(profile)
+            return observation_profile_detail(session, profile)
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Observation profile name already exists") from None
+
+
+@app.post(
+    "/observation-profiles/{profile_id}/types",
+    response_model=ObservationTypeRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_observation_type(
+    profile_id: int,
+    payload: ObservationTypeCreate,
+    user: Annotated[User, Depends(get_current_user)],
+) -> ObservationTypeRead:
+    try:
+        with SessionLocal.begin() as session:
+            get_owned_profile(session, profile_id, user.id)
+            observation_type = ObservationType(profile_id=profile_id, **payload.model_dump())
+            session.add(observation_type)
+            session.flush()
+            session.refresh(observation_type)
+            return ObservationTypeRead.model_validate(observation_type)
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Observation type label already exists") from None
+
+
+@app.patch("/observation-types/{observation_type_id}", response_model=ObservationTypeRead)
+def update_observation_type(
+    observation_type_id: int,
+    payload: ObservationTypeUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+) -> ObservationTypeRead:
+    try:
+        with SessionLocal.begin() as session:
+            observation_type = session.scalar(
+                select(ObservationType)
+                .join(ObservationProfile)
+                .where(
+                    ObservationType.id == observation_type_id,
+                    ObservationProfile.user_id == user.id,
+                ),
+            )
+            if observation_type is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Observation type not found")
+            for field, value in payload.model_dump(exclude_unset=True).items():
+                setattr(observation_type, field, value)
+            session.flush()
+            session.refresh(observation_type)
+            return ObservationTypeRead.model_validate(observation_type)
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Observation type label already exists") from None
 
 
 @app.post(
@@ -319,8 +470,6 @@ def get_trip(
                 for observation in observations
             ],
         )
-
-
 
 
 
