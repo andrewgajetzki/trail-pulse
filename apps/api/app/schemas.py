@@ -1,5 +1,3 @@
-from typing import Literal
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -94,18 +92,19 @@ class LocationPointCreate(BaseModel):
     heading: float | None = None
 
 
-class InteractionCreate(BaseModel):
+class ObservationCreate(BaseModel):
     recorded_at: int
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    type: Literal["Greeted me", "No response"]
+    observation_type_id: int = Field(gt=0)
 
 
 class TripCreate(BaseModel):
     started_at: int
     ended_at: int
+    observation_profile_id: int = Field(gt=0)
     location_points: list[LocationPointCreate] = Field(min_length=1)
-    interactions: list[InteractionCreate] = Field(default_factory=list)
+    observations: list[ObservationCreate] = Field(default_factory=list)
 
 
 class TripCreated(BaseModel):
@@ -132,13 +131,17 @@ class LocationPointRead(BaseModel):
     heading: float | None
 
 
-class InteractionRead(BaseModel):
+class ObservationRead(BaseModel):
     recorded_at: int
     latitude: float
     longitude: float
-    interaction_type: str
+    observation_type_id: int
+    observation_type_label: str
+    observation_type_icon: str
 
 
 class TripDetail(TripSummary):
+    observation_profile_id: int
+    observation_profile_name: str
     location_points: list[LocationPointRead]
-    interactions: list[InteractionRead]
+    observations: list[ObservationRead]

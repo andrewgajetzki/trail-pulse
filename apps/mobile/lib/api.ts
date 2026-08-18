@@ -1,9 +1,26 @@
 import * as Location from "expo-location";
 
-export type InteractionType = "Greeted me" | "No response";
+export type ObservationType = {
+    id: number;
+    profile_id: number;
+    label: string;
+    icon: string;
+    sort_order: number;
+    is_active: boolean;
+};
 
-export type RecordedInteraction = {
-    type: InteractionType;
+export type ObservationProfile = {
+    id: number;
+    name: string;
+    is_active: boolean;
+};
+
+export type ObservationProfileDetail = ObservationProfile & {
+    types: ObservationType[];
+};
+
+export type RecordedObservation = {
+    observationTypeId: number;
     latitude: number;
     longitude: number;
     timestamp: number;
@@ -13,7 +30,8 @@ type SaveTripArguments = {
     startedAt: number;
     endedAt: number;
     locationPoints: Location.LocationObject[];
-    interactions: RecordedInteraction[];
+    observationProfileId: number;
+    observations: RecordedObservation[];
     accessToken: string;
 };
 
@@ -41,16 +59,20 @@ export type LocationPoint = {
     heading: number | null;
 };
 
-export type TripInteraction = {
+export type TripObservation = {
     recorded_at: number;
     latitude: number;
     longitude: number;
-    interaction_type: "Greeted me" | "No response";
+    observation_type_id: number;
+    observation_type_label: string;
+    observation_type_icon: string;
 };
 
 export type TripDetail = TripSummary & {
+    observation_profile_id: number;
+    observation_profile_name: string;
     location_points: LocationPoint[];
-    interactions: TripInteraction[];
+    observations: TripObservation[];
 };
 
 export type AuthenticatedUser = {
@@ -110,6 +132,22 @@ export async function getTrips(accessToken: string): Promise<TripSummary[]> {
     return trips.sort((a, b) => b.started_at - a.started_at);
 }
 
+export async function getObservationProfiles(accessToken: string): Promise<ObservationProfile[]> {
+    const response = await fetch(`${getApiUrl()}/observation-profiles`, {
+        headers: authorizationHeaders(accessToken),
+    });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    return response.json();
+}
+
+export async function getObservationProfile(profileId: number, accessToken: string): Promise<ObservationProfileDetail> {
+    const response = await fetch(`${getApiUrl()}/observation-profiles/${profileId}`, {
+        headers: authorizationHeaders(accessToken),
+    });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    return response.json();
+}
+
 export async function getTrip(tripId: number, accessToken: string): Promise<TripDetail> {
     const response = await fetch(`${getApiUrl()}/trips/${tripId}`, {
         headers: authorizationHeaders(accessToken),
@@ -130,7 +168,8 @@ export async function saveTrip({
                                    startedAt,
                                    endedAt,
                                    locationPoints,
-                                   interactions,
+                                   observationProfileId,
+                                   observations,
                                    accessToken,
                                }: SaveTripArguments): Promise<SavedTripResponse> {
     const response = await fetch(`${getApiUrl()}/trips`, {
@@ -142,6 +181,7 @@ export async function saveTrip({
         body: JSON.stringify({
             started_at: startedAt,
             ended_at: endedAt,
+            observation_profile_id: observationProfileId,
 
             location_points: locationPoints.map((point) => ({
                 recorded_at: point.timestamp,
@@ -152,11 +192,11 @@ export async function saveTrip({
                 heading: point.coords.heading,
             })),
 
-            interactions: interactions.map((interaction) => ({
-                recorded_at: interaction.timestamp,
-                latitude: interaction.latitude,
-                longitude: interaction.longitude,
-                type: interaction.type,
+            observations: observations.map((observation) => ({
+                recorded_at: observation.timestamp,
+                latitude: observation.latitude,
+                longitude: observation.longitude,
+                observation_type_id: observation.observationTypeId,
             })),
         }),
     });

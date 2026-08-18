@@ -71,13 +71,6 @@ export default function TripDetailScreen() {
   }
 
   const durationMinutes = Math.max(1, Math.round((trip.ended_at - trip.started_at) / 60000));
-  const greetedCount = trip.interactions.filter(
-    (interaction) => interaction.interaction_type === "Greeted me",
-  ).length;
-  const noResponseCount = trip.interaction_count - greetedCount;
-  const greetingRate = trip.interaction_count
-    ? Math.round((greetedCount / trip.interaction_count) * 100)
-    : 0;
   const metrics = calculateTripMetrics(trip);
 
   return (
@@ -97,23 +90,12 @@ export default function TripDetailScreen() {
           value={metrics.maximumSpeedKmh === null ? "Unavailable" : `${metrics.maximumSpeedKmh.toFixed(1)} km/h`}
         />
         <Stat label="Interactions" value={String(trip.interaction_count)} />
-        <Stat label="Greeted" value={String(greetedCount)} />
-        <Stat label="No response" value={String(noResponseCount)} />
-        <Stat label="Greeting rate" value={`${greetingRate}%`} />
+        <Stat label="Profile" value={trip.observation_profile_name} />
         <Stat label="Interactions/km" value={metrics.interactionsPerKm.toFixed(1)} />
       </View>
 
       <RideMap trip={trip} />
 
-      <Text style={styles.sectionTitle}>Interactions</Text>
-      <View style={styles.interactionCard}>
-        <Text style={styles.interactionText}>🙂 Greeted me</Text>
-        <Text style={styles.interactionCount}>{greetedCount}</Text>
-      </View>
-      <View style={styles.interactionCard}>
-        <Text style={styles.interactionText}>😐 No response</Text>
-        <Text style={styles.interactionCount}>{noResponseCount}</Text>
-      </View>
     </ScrollView>
   );
 }
@@ -163,20 +145,20 @@ function RideMap({ trip }: { trip: TripDetail }) {
           </View>
         </Marker>
 
-        {trip.interactions.map((interaction, index) => (
+        {trip.observations.map((observation, index) => (
           <Marker
-            key={`${interaction.recorded_at}-${index}`}
+            key={`${observation.recorded_at}-${index}`}
             coordinate={{
-              latitude: interaction.latitude,
-              longitude: interaction.longitude,
+              latitude: observation.latitude,
+              longitude: observation.longitude,
             }}
-            title={interaction.interaction_type}
-            description={new Date(interaction.recorded_at).toLocaleTimeString()}
+            title={observation.observation_type_label}
+            description={new Date(observation.recorded_at).toLocaleTimeString()}
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.interactionMarker}>
               <Text style={styles.interactionEmoji}>
-                {interaction.interaction_type === "Greeted me" ? "🙂" : "😐"}
+                {observation.observation_type_icon}
               </Text>
             </View>
           </Marker>

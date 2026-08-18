@@ -96,6 +96,7 @@ class AuthRouteTests(unittest.TestCase):
                     json={
                         "started_at": 1_000,
                         "ended_at": 2_000,
+                        "observation_profile_id": 5,
                         "location_points": [
                             {
                                 "recorded_at": 1_000,
@@ -103,7 +104,7 @@ class AuthRouteTests(unittest.TestCase):
                                 "longitude": -114.0,
                             },
                         ],
-                        "interactions": [],
+                        "observations": [],
                     },
                 )
 

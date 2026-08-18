@@ -9,7 +9,13 @@ import {
 } from "react-native";
 import * as Location from "expo-location";
 
-import { saveTrip } from "../../lib/api";
+import {
+  getObservationProfile,
+  getObservationProfiles,
+  ObservationProfileDetail,
+  ObservationType,
+  saveTrip,
+} from "../../lib/api";
 import { useAuth } from "../../providers/auth-provider";
 
 import {
@@ -17,10 +23,8 @@ import {
   initializeDatabase,
 } from "../../lib/database";
 
-type InteractionType = "Greeted me" | "No response";
-
-type Interaction = {
-  type: InteractionType;
+type RecordedObservation = {
+  observationTypeId: number;
   latitude: number;
   longitude: number;
   timestamp: number;
@@ -34,7 +38,8 @@ export default function HomeScreen() {
   >([]);
   const [currentLocation, setCurrentLocation] =
       useState<Location.LocationObject | null>(null);
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [observations, setObservations] = useState<RecordedObservation[]>([]);
+  const [observationProfile, setObservationProfile] = useState<ObservationProfileDetail | null>(null);
 
   const locationSubscription =
       useRef<Location.LocationSubscription | null>(null);
@@ -57,7 +62,22 @@ export default function HomeScreen() {
     };
 
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+
+    getObservationProfiles(session.access_token)
+      .then((profiles) => profiles.find((profile) => profile.is_active) ?? profiles[0])
+      .then((profile) => profile ? getObservationProfile(profile.id, session.access_token) : null)
+      .then(setObservationProfile)
+      .catch((error) => console.error("Could not load observation profile:", error));
+  }, [session]);
+
   async function startRide() {
+    if (!observationProfile) {
+      Alert.alert("Observation profile unavailable", "Please wait for your observation profile to load.");
+      return;
+    }
     const permission =
         await Location.requestForegroundPermissionsAsync();
 
@@ -67,7 +87,7 @@ export default function HomeScreen() {
     }
 
     setLocationPoints([]);
-    setInteractions([]);
+    setObservations([]);
     setRideStartedAt(Date.now());
     setRideActive(true);
 
@@ -97,8 +117,8 @@ export default function HomeScreen() {
       return;
     }
 
-    if (!session) {
-      Alert.alert("Sign in required", "Please sign in before saving a ride.");
+    if (!session || !observationProfile) {
+      Alert.alert("Observation profile unavailable", "Please wait for your observation profile to load.");
       return;
     }
 
@@ -112,7 +132,8 @@ export default function HomeScreen() {
         startedAt: rideStartedAt,
         endedAt: Date.now(),
         locationPoints,
-        interactions,
+        observationProfileId: observationProfile.id,
+        observations,
         accessToken: session.access_token,
       });
 
@@ -137,7 +158,7 @@ export default function HomeScreen() {
     }
   }
 
-  function recordInteraction(type: InteractionType) {
+  function recordObservation(observationType: ObservationType) {
     if (!rideActive) {
       Alert.alert("Start a ride first");
       return;
@@ -148,10 +169,10 @@ export default function HomeScreen() {
       return;
     }
 
-    setInteractions((current) => [
+    setObservations((current) => [
       ...current,
       {
-        type,
+        observationTypeId: observationType.id,
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
         timestamp: Date.now(),
@@ -172,7 +193,7 @@ export default function HomeScreen() {
         </Text>
 
         <Text style={styles.details}>
-          Interactions: {interactions.length}
+          Observations: {observations.length}
         </Text>
 
         <Text style={styles.details}>
@@ -192,15 +213,13 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.interactions}>
-          <InteractionButton
-              label="🙂 Greeted me"
-              onPress={() => recordInteraction("Greeted me")}
-          />
-
-          <InteractionButton
-              label="😐 No response"
-              onPress={() => recordInteraction("No response")}
-          />
+          {observationProfile?.types.filter((type) => type.is_active).map((type) => (
+            <InteractionButton
+              key={type.id}
+              label={`${type.icon} ${type.label}`}
+              onPress={() => recordObservation(type)}
+            />
+          ))}
         </View>
       </SafeAreaView>
   );

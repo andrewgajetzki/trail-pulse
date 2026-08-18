@@ -19,8 +19,8 @@ from .schemas import (
     AuthenticatedUser,
     GoogleAuthRequest,
     GoogleAuthResponse,
-    InteractionRead,
     LocationPointRead,
+    ObservationRead,
     ObservationProfileCreate,
     ObservationProfileDetail,
     ObservationProfileSummary,
@@ -43,10 +43,6 @@ DEFAULT_OBSERVATION_TYPES = (
     ("Greeted us", "🙂", 1),
     ("No response", "😐", 2),
 )
-LEGACY_TYPE_TO_LABEL = {
-    "Greeted me": "Greeted us",
-    "No response": "No response",
-}
 
 
 def get_active_observation_profile(session, user_id: int) -> ObservationProfile:
@@ -160,6 +156,7 @@ def authenticate_with_google(payload: GoogleAuthRequest) -> GoogleAuthResponse:
             user.picture_url = picture_url if isinstance(picture_url, str) else None
 
         session.flush()
+        get_active_observation_profile(session, user.id)
         token = create_access_token(user.id)
         authenticated_user = AuthenticatedUser.model_validate(user)
 
@@ -314,12 +311,12 @@ def create_trip(
         )
 
     with SessionLocal.begin() as session:
-        profile = get_active_observation_profile(session, user.id)
+        profile = get_owned_profile(session, payload.observation_profile_id, user.id)
         trip = Trip(
             started_at=payload.started_at,
             ended_at=payload.ended_at,
             user_id=user.id,
-            observation_profile_id=profile.id,
+            observation_profile_id=payload.observation_profile_id,
         )
 
         session.add(trip)
@@ -339,24 +336,33 @@ def create_trip(
             for index, point in enumerate(payload.location_points)
         ]
 
+        observation_type_ids = {item.observation_type_id for item in payload.observations}
         observation_types = {
-            observation_type.label: observation_type.id
+            observation_type.id: observation_type
             for observation_type in session.scalars(
-                select(ObservationType).where(ObservationType.profile_id == profile.id),
+                select(ObservationType).where(
+                    ObservationType.profile_id == profile.id,
+                    ObservationType.is_active.is_(True),
+                    ObservationType.id.in_(observation_type_ids),
+                ),
             )
         }
+        if set(observation_types) != observation_type_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Observations must use active types from the selected profile",
+            )
         observations = [
             Observation(
                 trip_id=trip.id,
-                recorded_at=interaction.recorded_at,
-                latitude=interaction.latitude,
-                longitude=interaction.longitude,
-                observation_type_id=observation_types[
-                    LEGACY_TYPE_TO_LABEL[interaction.type]
-                ],
-                interaction_type=interaction.type,
+                recorded_at=observation.recorded_at,
+                latitude=observation.latitude,
+                longitude=observation.longitude,
+                observation_type_id=observation.observation_type_id,
+                # Retained legacy column; derive its value from the configured type.
+                interaction_type=observation_types[observation.observation_type_id].label,
             )
-            for interaction in payload.interactions
+            for observation in payload.observations
         ]
 
         session.add_all(location_points)
@@ -436,8 +442,9 @@ def get_trip(
             .order_by(LocationPoint.sequence_number)
         ).all()
 
-        observations = session.scalars(
-            select(Observation)
+        observations = session.execute(
+            select(Observation, ObservationType)
+            .join(ObservationType)
             .where(Observation.trip_id == trip_id)
             .order_by(Observation.recorded_at)
         ).all()
@@ -446,6 +453,12 @@ def get_trip(
             id=trip.id,
             started_at=trip.started_at,
             ended_at=trip.ended_at,
+            observation_profile_id=trip.observation_profile_id,
+            observation_profile_name=session.scalar(
+                select(ObservationProfile.name).where(
+                    ObservationProfile.id == trip.observation_profile_id,
+                ),
+            ),
             location_point_count=len(location_points),
             interaction_count=len(observations),
             location_points=[
@@ -460,17 +473,18 @@ def get_trip(
                 )
                 for point in location_points
             ],
-            interactions=[
-                InteractionRead(
+            observations=[
+                ObservationRead(
                     recorded_at=observation.recorded_at,
                     latitude=observation.latitude,
                     longitude=observation.longitude,
-                    interaction_type=observation.interaction_type,
+                    observation_type_id=observation_type.id,
+                    observation_type_label=observation_type.label,
+                    observation_type_icon=observation_type.icon,
                 )
-                for observation in observations
+                for observation, observation_type in observations
             ],
         )
-
 
 
 
