@@ -11,9 +11,11 @@ import {
 import MapView, { Marker, Polyline, Region } from "react-native-maps";
 
 import { getTrip, TripDetail } from "../../lib/api";
+import { useAuth } from "../../providers/auth-provider";
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { session } = useAuth();
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,13 +33,17 @@ export default function TripDetailScreen() {
     setError(null);
 
     try {
-      setTrip(await getTrip(tripId));
+      if (!session) {
+        throw new Error("Sign in is required to load this ride.");
+      }
+
+      setTrip(await getTrip(tripId, session.access_token));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The ride could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, session]);
 
   useEffect(() => {
     void loadTrip();

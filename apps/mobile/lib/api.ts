@@ -92,8 +92,14 @@ export async function signInWithGoogle(idToken: string): Promise<AuthSession> {
     return response.json();
 }
 
-export async function getTrips(): Promise<TripSummary[]> {
-    const response = await fetch(`${getApiUrl()}/trips`);
+function authorizationHeaders(accessToken: string) {
+    return { Authorization: `Bearer ${accessToken}` };
+}
+
+export async function getTrips(accessToken: string): Promise<TripSummary[]> {
+    const response = await fetch(`${getApiUrl()}/trips`, {
+        headers: authorizationHeaders(accessToken),
+    });
 
     if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
@@ -104,8 +110,10 @@ export async function getTrips(): Promise<TripSummary[]> {
     return trips.sort((a, b) => b.started_at - a.started_at);
 }
 
-export async function getTrip(tripId: number): Promise<TripDetail> {
-    const response = await fetch(`${getApiUrl()}/trips/${tripId}`);
+export async function getTrip(tripId: number, accessToken: string): Promise<TripDetail> {
+    const response = await fetch(`${getApiUrl()}/trips/${tripId}`, {
+        headers: authorizationHeaders(accessToken),
+    });
 
     if (response.status === 404) {
         throw new Error("Ride not found");
@@ -129,7 +137,7 @@ export async function saveTrip({
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
+            ...authorizationHeaders(accessToken),
         },
         body: JSON.stringify({
             started_at: startedAt,

@@ -158,7 +158,9 @@ def create_trip(
     )
 
 @app.get("/trips", response_model=list[TripSummary])
-def list_trips() -> list[TripSummary]:
+def list_trips(
+    user: Annotated[User, Depends(get_current_user)],
+) -> list[TripSummary]:
     with SessionLocal() as session:
         statement = (
             select(
@@ -180,6 +182,7 @@ def list_trips() -> list[TripSummary]:
                 Interaction,
                 Interaction.trip_id == Trip.id,
             )
+            .where(Trip.user_id == user.id)
             .group_by(Trip.id)
             .order_by(Trip.started_at.desc())
         )
@@ -199,9 +202,14 @@ def list_trips() -> list[TripSummary]:
 
 
 @app.get("/trips/{trip_id}", response_model=TripDetail)
-def get_trip(trip_id: int) -> TripDetail:
+def get_trip(
+    trip_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+) -> TripDetail:
     with SessionLocal() as session:
-        trip = session.get(Trip, trip_id)
+        trip = session.scalar(
+            select(Trip).where(Trip.id == trip_id, Trip.user_id == user.id),
+        )
 
         if trip is None:
             raise HTTPException(
@@ -249,7 +257,6 @@ def get_trip(trip_id: int) -> TripDetail:
                 for interaction in interactions
             ],
         )
-
 
 
 

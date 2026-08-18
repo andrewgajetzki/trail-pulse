@@ -18,6 +18,7 @@ Create `apps/mobile/.env.local`:
 ```env
 EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP/api
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-oauth-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-android-maps-api-key
 ```
 
 Then install and run Expo:
@@ -72,3 +73,10 @@ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -sto
 For an EAS or Play release, use the SHA-1 reported by that service’s signing certificate rather than the debug fingerprint.
 
 The app sends only the Google ID token to `POST /api/auth/google`. The backend verifies it, then returns a Trail Pulse JWT and profile. The app does not persist that JWT yet, so the session ends when the app reloads or closes.
+
+## Google Maps setup (Android)
+
+1. In the same Google Cloud project, enable **Maps SDK for Android**.
+2. Create an Android API key and restrict it to package `com.andrewgajetzki.trailpulse` plus the SHA-1 certificate fingerprints for the builds that will use it.
+3. Set the key as `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env.local` (and as an EAS environment variable for cloud builds).
+4. Rebuild and reinstall the Android app. A JavaScript reload cannot add the key to the Android manifest.

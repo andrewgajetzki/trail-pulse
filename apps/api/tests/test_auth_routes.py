@@ -18,6 +18,12 @@ class AuthRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_trips_reject_missing_bearer_token(self) -> None:
+        with TestClient(app) as client:
+            response = client.get("/trips")
+
+        self.assertEqual(response.status_code, 401)
+
     def test_auth_me_returns_the_authenticated_user(self) -> None:
         app.dependency_overrides[get_current_user] = lambda: User(
             id=2,

@@ -15,6 +15,7 @@ type GoogleSignInResult =
 type AuthContextValue = {
   session: AuthSession | null;
   signInWithGoogleAccount: () => Promise<GoogleSignInResult>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,30 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           showPlayServicesUpdateDialog: true,
         });
 
-        try {
-          const response = await GoogleSignin.signIn();
-
-          if (!isSuccessResponse(response)) {
-            return { status: "cancelled" };
-          }
-
-          const idToken = response.data.idToken;
-
-          if (!idToken) {
-            throw new Error("Google did not return an ID token");
-          }
-
-          setSession(await signInWithGoogle(idToken));
-          return { status: "success" };
-        } catch (error: any) {
-          Alert.alert(
-              "Google Sign-In Error",
-              `Code: ${error?.code ?? "unknown"}\nMessage: ${error?.message ?? String(error)}`
-          );
-
-          console.error("GOOGLE SIGN-IN ERROR:", error);
-          throw error;
-        }
+        const response = await GoogleSignin.signIn();
 
         if (!isSuccessResponse(response)) {
           return { status: "cancelled" };
@@ -76,6 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setSession(await signInWithGoogle(idToken));
         return { status: "success" };
+      },
+      async signOut() {
+        setSession(null);
+
+        try {
+          await GoogleSignin.signOut();
+        } catch (error) {
+          console.warn("Google sign-out failed:", error);
+        }
       },
     }),
     [session],

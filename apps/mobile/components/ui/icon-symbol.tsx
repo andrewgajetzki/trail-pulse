@@ -18,6 +18,7 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'bicycle': 'directions-bike',
   'clock.arrow.circlepath': 'history',
+  'gearshape.fill': 'settings',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

@@ -11,8 +11,10 @@ import {
 } from "react-native";
 
 import { getTrips, TripSummary } from "../../lib/api";
+import { useAuth } from "../../providers/auth-provider";
 
 export default function HistoryScreen() {
+  const { session } = useAuth();
   const [trips, setTrips] = useState<TripSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,7 +29,11 @@ export default function HistoryScreen() {
     setError(null);
 
     try {
-      setTrips(await getTrips());
+      if (!session) {
+        throw new Error("Sign in is required to load ride history.");
+      }
+
+      setTrips(await getTrips(session.access_token));
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -38,7 +44,7 @@ export default function HistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
