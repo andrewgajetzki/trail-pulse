@@ -6,7 +6,14 @@ from sqlalchemy import func, select, text
 from .auth import create_access_token, get_current_user
 from .database import SessionLocal, engine
 from .google_auth import GoogleTokenValidationError, verify_google_id_token
-from .models import Interaction, LocationPoint, Trip, User
+from .models import (
+    LocationPoint,
+    Observation,
+    ObservationProfile,
+    ObservationType,
+    Trip,
+    User,
+)
 from .schemas import (
     AuthenticatedUser,
     GoogleAuthRequest,
@@ -22,6 +29,50 @@ from .schemas import (
 app = FastAPI(
     title="Trail Pulse API",
 )
+
+DEFAULT_PROFILE_NAME = "Trail Friendliness"
+DEFAULT_OBSERVATION_TYPES = (
+    ("Greeted us", "🙂", 1),
+    ("No response", "😐", 2),
+)
+LEGACY_TYPE_TO_LABEL = {
+    "Greeted me": "Greeted us",
+    "No response": "No response",
+}
+
+
+def get_active_observation_profile(session, user_id: int) -> ObservationProfile:
+    """Return the user's active profile, creating the default for new users."""
+    profile = session.scalar(
+        select(ObservationProfile)
+        .where(
+            ObservationProfile.user_id == user_id,
+            ObservationProfile.is_active.is_(True),
+        )
+        .order_by(ObservationProfile.id)
+    )
+    if profile is not None:
+        return profile
+
+    profile = ObservationProfile(
+        user_id=user_id,
+        name=DEFAULT_PROFILE_NAME,
+        is_active=True,
+    )
+    session.add(profile)
+    session.flush()
+    session.add_all(
+        ObservationType(
+            profile_id=profile.id,
+            label=label,
+            icon=icon,
+            sort_order=sort_order,
+            is_active=True,
+        )
+        for label, icon, sort_order in DEFAULT_OBSERVATION_TYPES
+    )
+    session.flush()
+    return profile
 
 @app.post("/auth/google", response_model=GoogleAuthResponse)
 def authenticate_with_google(payload: GoogleAuthRequest) -> GoogleAuthResponse:
@@ -112,10 +163,12 @@ def create_trip(
         )
 
     with SessionLocal.begin() as session:
+        profile = get_active_observation_profile(session, user.id)
         trip = Trip(
             started_at=payload.started_at,
             ended_at=payload.ended_at,
             user_id=user.id,
+            observation_profile_id=profile.id,
         )
 
         session.add(trip)
@@ -135,26 +188,35 @@ def create_trip(
             for index, point in enumerate(payload.location_points)
         ]
 
-        interactions = [
-            Interaction(
+        observation_types = {
+            observation_type.label: observation_type.id
+            for observation_type in session.scalars(
+                select(ObservationType).where(ObservationType.profile_id == profile.id),
+            )
+        }
+        observations = [
+            Observation(
                 trip_id=trip.id,
                 recorded_at=interaction.recorded_at,
                 latitude=interaction.latitude,
                 longitude=interaction.longitude,
+                observation_type_id=observation_types[
+                    LEGACY_TYPE_TO_LABEL[interaction.type]
+                ],
                 interaction_type=interaction.type,
             )
             for interaction in payload.interactions
         ]
 
         session.add_all(location_points)
-        session.add_all(interactions)
+        session.add_all(observations)
 
         trip_id = trip.id
 
     return TripCreated(
         id=trip_id,
         location_point_count=len(location_points),
-        interaction_count=len(interactions),
+        interaction_count=len(observations),
     )
 
 @app.get("/trips", response_model=list[TripSummary])
@@ -171,7 +233,7 @@ def list_trips(
                     func.distinct(LocationPoint.id)
                 ).label("location_point_count"),
                 func.count(
-                    func.distinct(Interaction.id)
+                    func.distinct(Observation.id)
                 ).label("interaction_count"),
             )
             .outerjoin(
@@ -179,8 +241,8 @@ def list_trips(
                 LocationPoint.trip_id == Trip.id,
             )
             .outerjoin(
-                Interaction,
-                Interaction.trip_id == Trip.id,
+                Observation,
+                Observation.trip_id == Trip.id,
             )
             .where(Trip.user_id == user.id)
             .group_by(Trip.id)
@@ -223,10 +285,10 @@ def get_trip(
             .order_by(LocationPoint.sequence_number)
         ).all()
 
-        interactions = session.scalars(
-            select(Interaction)
-            .where(Interaction.trip_id == trip_id)
-            .order_by(Interaction.recorded_at)
+        observations = session.scalars(
+            select(Observation)
+            .where(Observation.trip_id == trip_id)
+            .order_by(Observation.recorded_at)
         ).all()
 
         return TripDetail(
@@ -234,7 +296,7 @@ def get_trip(
             started_at=trip.started_at,
             ended_at=trip.ended_at,
             location_point_count=len(location_points),
-            interaction_count=len(interactions),
+            interaction_count=len(observations),
             location_points=[
                 LocationPointRead(
                     recorded_at=point.recorded_at,
@@ -249,15 +311,14 @@ def get_trip(
             ],
             interactions=[
                 InteractionRead(
-                    recorded_at=interaction.recorded_at,
-                    latitude=interaction.latitude,
-                    longitude=interaction.longitude,
-                    interaction_type=interaction.interaction_type,
+                    recorded_at=observation.recorded_at,
+                    latitude=observation.latitude,
+                    longitude=observation.longitude,
+                    interaction_type=observation.interaction_type,
                 )
-                for interaction in interactions
+                for observation in observations
             ],
         )
-
 
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -24,6 +24,48 @@ class User(Base):
     )
 
     trips: Mapped[list["Trip"]] = relationship(back_populates="user")
+    observation_profiles: Mapped[list["ObservationProfile"]] = relationship(
+        back_populates="user",
+    )
+
+
+class ObservationProfile(Base):
+    __tablename__ = "observation_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+    )
+
+    user: Mapped[User] = relationship(back_populates="observation_profiles")
+    observation_types: Mapped[list["ObservationType"]] = relationship(
+        back_populates="profile",
+    )
+
+
+class ObservationType(Base):
+    __tablename__ = "observation_types"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("observation_profiles.id", ondelete="CASCADE"),
+        index=True,
+    )
+    label: Mapped[str] = mapped_column(String(255))
+    icon: Mapped[str] = mapped_column(String(32))
+    sort_order: Mapped[int]
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+    )
+
+    profile: Mapped[ObservationProfile] = relationship(back_populates="observation_types")
 
 
 class Trip(Base):
@@ -34,6 +76,10 @@ class Trip(Base):
     ended_at: Mapped[int] = mapped_column(BigInteger)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    observation_profile_id: Mapped[int] = mapped_column(
+        ForeignKey("observation_profiles.id", ondelete="RESTRICT"),
         index=True,
     )
 
@@ -57,8 +103,8 @@ class LocationPoint(Base):
     heading: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
-class Interaction(Base):
-    __tablename__ = "interactions"
+class Observation(Base):
+    __tablename__ = "observations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     trip_id: Mapped[int] = mapped_column(
@@ -68,4 +114,9 @@ class Interaction(Base):
     recorded_at: Mapped[int] = mapped_column(BigInteger)
     latitude: Mapped[float] = mapped_column(Float)
     longitude: Mapped[float] = mapped_column(Float)
+    observation_type_id: Mapped[int] = mapped_column(
+        ForeignKey("observation_types.id", ondelete="RESTRICT"),
+        index=True,
+    )
+    # Retained temporarily to verify the backfill before a future removal.
     interaction_type: Mapped[str] = mapped_column(String(30))
