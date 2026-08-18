@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, Region } from "react-native-maps";
+import MapView, { Callout, Marker, Polyline, Region } from "react-native-maps";
 
 import { getTrip, TripDetail } from "../../lib/api";
 import { useAuth } from "../../providers/auth-provider";
@@ -72,11 +72,13 @@ export default function TripDetailScreen() {
 
   const durationMinutes = Math.max(1, Math.round((trip.ended_at - trip.started_at) / 60000));
   const metrics = calculateTripMetrics(trip);
+  const observationCounts = countObservations(trip);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.eyebrow}>TRAIL PULSE</Text>
       <Text style={styles.title}>{new Date(trip.started_at).toLocaleDateString()}</Text>
+      <View style={styles.profileBadge}><Text style={styles.profileBadgeText}>{trip.observation_profile_name}</Text></View>
       <Text style={styles.subtitle}>
         Started {new Date(trip.started_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
       </Text>
@@ -89,9 +91,19 @@ export default function TripDetailScreen() {
           label="Maximum speed"
           value={metrics.maximumSpeedKmh === null ? "Unavailable" : `${metrics.maximumSpeedKmh.toFixed(1)} km/h`}
         />
-        <Stat label="Interactions" value={String(trip.interaction_count)} />
-        <Stat label="Profile" value={trip.observation_profile_name} />
-        <Stat label="Interactions/km" value={metrics.interactionsPerKm.toFixed(1)} />
+        <Stat label="Observations" value={String(trip.interaction_count)} />
+        <Stat label="Observations/km" value={metrics.interactionsPerKm.toFixed(1)} />
+      </View>
+
+      <Text style={styles.sectionTitle}>Observations</Text>
+      <View style={styles.observationBreakdown}>
+        {observationCounts.map((observation) => (
+          <View key={observation.typeId} style={styles.observationRow}>
+            <Text style={styles.observationIcon}>{observation.icon}</Text>
+            <Text style={styles.observationLabel}>{observation.label}</Text>
+            <Text style={styles.observationCount}>{observation.count}</Text>
+          </View>
+        ))}
       </View>
 
       <RideMap trip={trip} />
@@ -161,11 +173,35 @@ function RideMap({ trip }: { trip: TripDetail }) {
                 {observation.observation_type_icon}
               </Text>
             </View>
+            <Callout tooltip>
+              <View style={styles.callout}>
+                <Text style={styles.calloutIcon}>{observation.observation_type_icon}</Text>
+                <View>
+                  <Text style={styles.calloutLabel}>{observation.observation_type_label}</Text>
+                  <Text style={styles.calloutTime}>{new Date(observation.recorded_at).toLocaleTimeString()}</Text>
+                </View>
+              </View>
+            </Callout>
           </Marker>
         ))}
       </MapView>
     </View>
   );
+}
+
+function countObservations(trip: TripDetail) {
+  const counts = new Map<number, { typeId: number; icon: string; label: string; count: number }>();
+  for (const observation of trip.observations) {
+    const current = counts.get(observation.observation_type_id);
+    if (current) current.count += 1;
+    else counts.set(observation.observation_type_id, {
+      typeId: observation.observation_type_id,
+      icon: observation.observation_type_icon,
+      label: observation.observation_type_label,
+      count: 1,
+    });
+  }
+  return [...counts.values()];
 }
 
 function getRouteRegion(coordinates: { latitude: number; longitude: number }[]): Region {
@@ -233,6 +269,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   eyebrow: { color: "#17202a", fontWeight: "700", letterSpacing: 1.5, marginBottom: 4 },
   title: { fontSize: 36, fontWeight: "bold", color: "#17202a" },
+  profileBadge: { alignSelf: "flex-start", backgroundColor: "#d7f2e9", borderRadius: 99, marginTop: 10, paddingHorizontal: 11, paddingVertical: 5 },
+  profileBadgeText: { color: "#126750", fontSize: 13, fontWeight: "800" },
   subtitle: { fontSize: 16, color: "#5d6d65", marginTop: 8, marginBottom: 32 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   statCard: { width: "48%", padding: 16, borderRadius: 12, backgroundColor: "white", borderWidth: 1, borderColor: "#d7dfda" },
@@ -248,9 +286,10 @@ const styles = StyleSheet.create({
   interactionMarker: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "white", borderRadius: 20, backgroundColor: "white", shadowColor: "black", shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
   interactionEmoji: { fontSize: 23 },
   sectionTitle: { fontSize: 20, fontWeight: "700", marginTop: 28, marginBottom: 12 },
-  interactionCard: { flexDirection: "row", justifyContent: "space-between", padding: 18, marginBottom: 10, borderRadius: 12, backgroundColor: "white", borderWidth: 1, borderColor: "#d7dfda" },
-  interactionText: { fontSize: 16 },
-  interactionCount: { fontSize: 17, fontWeight: "700" },
+  observationBreakdown: { backgroundColor: "white", borderColor: "#d7dfda", borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  observationRow: { alignItems: "center", borderBottomColor: "#edf1ee", borderBottomWidth: 1, flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12 },
+  observationIcon: { fontSize: 23, marginRight: 11 }, observationLabel: { color: "#17202a", flex: 1, fontSize: 16 }, observationCount: { color: "#17202a", fontSize: 18, fontWeight: "800" },
+  callout: { alignItems: "center", backgroundColor: "white", borderColor: "#d7dfda", borderRadius: 12, borderWidth: 1, flexDirection: "row", padding: 10 }, calloutIcon: { fontSize: 26, marginRight: 8 }, calloutLabel: { color: "#17202a", fontSize: 14, fontWeight: "800" }, calloutTime: { color: "#5d6d65", fontSize: 12, marginTop: 2 },
   muted: { color: "#64748b", textAlign: "center", marginTop: 10 },
   errorTitle: { fontSize: 20, fontWeight: "700" },
   retryButton: { marginTop: 18, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, backgroundColor: "#15803d" },
