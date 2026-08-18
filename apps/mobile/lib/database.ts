@@ -10,7 +10,7 @@ export type SavedLocationPoint = {
 };
 
 export type SavedInteraction = {
-    type: "Greeted me" | "No response";
+    type: string;
     timestamp: number;
     latitude: number;
     longitude: number;

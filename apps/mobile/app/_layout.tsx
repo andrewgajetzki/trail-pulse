@@ -20,6 +20,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="trips/[id]" options={{ title: 'Ride details' }} />
+          <Stack.Screen name="observation-profiles/[id]" options={{ title: 'Observation Profile' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
       </AuthProvider>

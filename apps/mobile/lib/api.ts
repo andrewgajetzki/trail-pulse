@@ -148,6 +148,32 @@ export async function getObservationProfile(profileId: number, accessToken: stri
     return response.json();
 }
 
+async function observationRequest<T>(path: string, accessToken: string, method: "POST" | "PATCH", body: unknown): Promise<T> {
+    const response = await fetch(`${getApiUrl()}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json", ...authorizationHeaders(accessToken) },
+        body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(`API returned ${response.status}: ${await response.text()}`);
+    return response.json();
+}
+
+export function createObservationProfile(name: string, accessToken: string) {
+    return observationRequest<ObservationProfileDetail>("/observation-profiles", accessToken, "POST", { name });
+}
+
+export function updateObservationProfile(profileId: number, changes: Partial<Pick<ObservationProfile, "name" | "is_active">>, accessToken: string) {
+    return observationRequest<ObservationProfileDetail>(`/observation-profiles/${profileId}`, accessToken, "PATCH", changes);
+}
+
+export function createObservationType(profileId: number, type: Pick<ObservationType, "label" | "icon" | "sort_order">, accessToken: string) {
+    return observationRequest<ObservationType>(`/observation-profiles/${profileId}/types`, accessToken, "POST", type);
+}
+
+export function updateObservationType(typeId: number, changes: Partial<Pick<ObservationType, "label" | "icon" | "sort_order" | "is_active">>, accessToken: string) {
+    return observationRequest<ObservationType>(`/observation-types/${typeId}`, accessToken, "PATCH", changes);
+}
+
 export async function getTrip(tripId: number, accessToken: string): Promise<TripDetail> {
     const response = await fetch(`${getApiUrl()}/trips/${tripId}`, {
         headers: authorizationHeaders(accessToken),
