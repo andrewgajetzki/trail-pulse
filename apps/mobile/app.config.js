@@ -4,9 +4,10 @@ const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 module.exports = () => ({
   ...app.expo,
+  owner: "andygajetzki",
   android: {
     ...app.expo.android,
-    config: {
+  config: {
       ...app.expo.android.config,
       googleMaps: googleMapsApiKey ? { apiKey: googleMapsApiKey } : undefined,
     },
