@@ -126,10 +126,12 @@ For example, the command may return `192.168.1.123`.
 
 ### 4. Configure the mobile app
 
-Create `apps/mobile/.env.local` and replace the example address with the computer's local IP:
+Set the mobile variables in the repository-root `.env` file. Replace the example API address with the computer's local IP:
 
 ```env
 EXPO_PUBLIC_API_URL=http://192.168.1.123/api
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-oauth-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-android-maps-api-key
 ```
 
 Environment files are ignored by Git and should not be committed.
@@ -139,10 +141,10 @@ Environment files are ignored by Git and should not be committed.
 ```bash
 cd apps/mobile
 npm install
-npx expo start
+npm run start
 ```
 
-Scan the QR code with Expo Go. If a newly installed native dependency is not detected, restart Metro with `npx expo start --clear`.
+Scan the QR code with Expo Go. If a newly installed native dependency is not detected, restart Metro with `npm run start -- --clear`.
 
 ## API
 

@@ -13,7 +13,7 @@ The Trail Pulse mobile app is an Expo and React Native client for recording bike
 
 Start the backend from the repository root first. It must be reachable by the phone on the same local network.
 
-Create `apps/mobile/.env.local`:
+Create the repository-root `.env` from `../../.env.example`, then set its mobile variables:
 
 ```env
 EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP/api
@@ -25,14 +25,14 @@ Then install and run Expo:
 
 ```bash
 npm install
-npx expo start
+npm run start
 ```
 
 Google Sign-In uses a native module and does **not** work in Expo Go. Build and install a development build or a standalone Android app instead:
 
 ```bash
-npx expo prebuild --clean
-npx expo run:android
+npm run prebuild -- --clean
+npm run android
 ```
 
 For a distributable Android build, configure EAS and run `eas build --platform android`.
@@ -62,7 +62,7 @@ In Google Cloud Console:
 3. Open **Google Auth platform** → **Clients** → **Create client** → **Android**. Enter package name `com.andrewgajetzki.trailpulse` and the SHA-1 fingerprint for the signing certificate used by that build.
 4. Create an Android client for every signing certificate you use with that package name. Register the debug certificate for local development, the EAS/release certificate for direct APK/AAB builds, and the Google Play App Signing certificate for Play-distributed builds.
 5. Create a **Web application** OAuth client. Its client ID is required to request the Google ID token whose audience the Trail Pulse API verifies. No client secret belongs in this app, and this native ID-token exchange does not need a web redirect URI.
-6. Set the Web client ID in both places: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` in `apps/mobile/.env.local`, and `GOOGLE_CLIENT_ID` in the backend root `.env`.
+6. Set the Web client ID as both `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` and `GOOGLE_CLIENT_ID` in the repository-root `.env`.
 
 To print the standard local Android debug SHA-1:
 
@@ -78,5 +78,5 @@ The app sends only the Google ID token to `POST /api/auth/google`. The backend v
 
 1. In the same Google Cloud project, enable **Maps SDK for Android**.
 2. Create an Android API key and restrict it to package `com.andrewgajetzki.trailpulse` plus the SHA-1 certificate fingerprints for the builds that will use it.
-3. Set the key as `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env.local` (and as an EAS environment variable for cloud builds).
+3. Set the key as `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` in the repository-root `.env` (and as an EAS environment variable for cloud builds).
 4. Rebuild and reinstall the Android app. A JavaScript reload cannot add the key to the Android manifest.
