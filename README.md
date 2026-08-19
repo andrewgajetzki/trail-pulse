@@ -1,284 +1,180 @@
 # Trail Pulse
 
-Trail Pulse is a mobile trip-tracking app for recording social interactions on Calgary bike trails. During a ride, it records GPS points and lets the rider quickly log whether another trail user returned a greeting. Completed rides are stored through a FastAPI backend in PostgreSQL.
-
-<img width="743" height="659" alt="Trail Pulse ride screen" src="https://github.com/user-attachments/assets/59f98107-ae0c-4960-97f7-1597bda88f78" />
-
-## Features
-
-- Start and stop a bike ride
-- Record GPS coordinates throughout the ride
-- Log `🙂 Greeted me` and `😐 No response` interactions with their time and location
-- Upload completed rides to FastAPI and store them in PostgreSQL
-- Browse ride history in reverse chronological order
-- Open a detailed summary for each ride
-- View duration, distance, speed, interaction, and greeting-rate metrics
-- Display the route, start, finish, and interaction markers on a native map
+Trail Pulse is a mobile app for recording bike rides and location-based trail observations. Riders sign in with Google, choose an observation profile, record GPS points and observations during a ride, then review their history and route maps.
 
 ## Architecture
 
 ```text
-Expo mobile app
-      │
-      │ HTTP /api
-      ▼
-    Caddy
-      │
-      ▼
-FastAPI ──────► PostgreSQL
+Expo app ── HTTPS /api ──► Caddy ──► FastAPI ──► PostgreSQL
 ```
 
-The Expo app is the only user interface. Caddy exposes the API to devices on the local network and forwards `/api/*` requests directly to FastAPI.
+The FastAPI service owns authentication, rides, observation profiles, and data persistence. Caddy publishes only `/api/*`; it removes that prefix before forwarding to FastAPI. The mobile app is configured from the repository-root `.env` during local development and with EAS environment variables for cloud builds.
 
-## Technology
-
-### Mobile
-
-- React Native and Expo
-- TypeScript
-- Expo Router and Expo Location
-- React Native Maps
-
-### Backend
-
-- Python and FastAPI
-- SQLAlchemy and Psycopg
-- PostgreSQL
-- Caddy
-- Docker Compose
-
-## Project Structure
+## Repository layout
 
 ```text
 trail-pulse/
 ├── apps/
-│   ├── api/
-│   │   └── app/
-│   │       ├── database.py
-│   │       ├── main.py
-│   │       ├── models.py
-│   │       └── schemas.py
-│   └── mobile/
-│       ├── app/
-│       ├── components/
-│       ├── hooks/
-│       └── lib/
-├── Caddyfile
-├── docker-compose.yml
+│   ├── api/                 FastAPI service, Alembic migrations, and tests
+│   └── mobile/              Expo / React Native app
+├── Caddyfile                HTTPS reverse-proxy configuration
+├── docker-compose.yml       API, PostgreSQL, and Caddy services
+├── .env.example             Single local configuration template
 └── README.md
 ```
 
-## Prerequisites
+## Requirements
 
-- Git
-- Docker and Docker Compose
-- Node.js and npm
-- Expo Go on an Android or iOS device
+- Docker Engine with Docker Compose (server and local API)
+- Node.js 20.6+ and npm (the mobile commands use `node --env-file`)
+- Android Studio / Android SDK for local Android builds
+- An Expo account and EAS CLI for cloud builds
+- A Google Cloud project for Google Sign-In and Android Maps
 
-The phone and development computer must be connected to the same local network.
+Expo Go is suitable for basic JavaScript development, but Google Sign-In and Google Maps require a development or release build.
 
-## Getting Started
+## Configuration
 
-### 1. Configure the backend
-
-Clone the repository and enter it:
-
-```bash
-git clone <repository-url>
-cd trail-pulse
-```
-
-Copy the safe template, then replace its password and JWT secret locally:
+Copy the one local configuration template at the repository root:
 
 ```bash
 cp .env.example .env
+```
+
+Set every placeholder before deployment. `JWT_SECRET` must be a long, random value; for example:
+
+```bash
 openssl rand -hex 32
 ```
 
-Set the generated value as `JWT_SECRET` in `.env`. Never commit `.env`.
+The root `.env` contains both server and local-mobile settings:
 
-### 2. Start the backend
+| Setting | Used by | Notes |
+| --- | --- | --- |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | PostgreSQL | Persistent database credentials |
+| `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES` | API | Token signing configuration |
+| `GOOGLE_CLIENT_ID` | API | Google Web OAuth client ID used to verify ID tokens |
+| `SITE_ADDRESS` | Caddy | Public hostname, such as `trails.example.com` |
+| `EXPO_PUBLIC_API_URL` | mobile | Public API base URL ending in `/api` |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | mobile | Same Web OAuth client ID as `GOOGLE_CLIENT_ID` |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | mobile | Restricted Android Maps SDK key |
 
-Build and start Caddy, FastAPI, and PostgreSQL:
+Values prefixed `EXPO_PUBLIC_` are embedded in the mobile bundle. Do not put secrets in them. `.env` is ignored by Git and must never be committed.
+
+For local mobile testing, set `EXPO_PUBLIC_API_URL` to the development computer's LAN address, for example `http://192.168.1.123/api`; do not use `localhost` from a physical phone.
+
+## Local development
+
+### Start the API stack
+
+From the repository root:
 
 ```bash
 docker compose up --build -d
-```
-
-Check the containers and API health:
-
-```bash
-docker compose ps
+docker compose run --rm --no-deps api alembic upgrade head
 curl http://localhost/api/health
 ```
 
-Interactive API documentation is available at `http://localhost/api/docs`.
+The API documentation is available at `http://localhost/api/docs`. Inspect logs with `docker compose logs -f api`, and stop the stack with `docker compose down`. The PostgreSQL volume remains intact after `down`.
 
-### 3. Find the computer's local IP address
+### Start the mobile app
 
-On Linux:
-
-```bash
-ip route get 1.1.1.1 | awk '{print $7; exit}'
-```
-
-For example, the command may return `192.168.1.123`.
-
-### 4. Configure the mobile app
-
-Set the mobile variables in the repository-root `.env` file. Replace the example API address with the computer's local IP:
-
-```env
-EXPO_PUBLIC_API_URL=http://192.168.1.123/api
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-oauth-client-id.apps.googleusercontent.com
-EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-android-maps-api-key
-```
-
-Environment files are ignored by Git and should not be committed.
-
-### 5. Start Expo
+From `apps/mobile`:
 
 ```bash
-cd apps/mobile
 npm install
 npm run start
 ```
 
-Scan the QR code with Expo Go. If a newly installed native dependency is not detected, restart Metro with `npm run start -- --clear`.
-
-## API
-
-All public URLs use the `/api` prefix. Caddy removes that prefix when forwarding requests to FastAPI.
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/health` | Check API and database health |
-| `POST` | `/api/auth/google` | Exchange a verified Google ID token for a Trail Pulse JWT |
-| `GET` | `/api/auth/me` | Return the user represented by a Trail Pulse JWT |
-| `POST` | `/api/trips` | Save a completed ride |
-| `GET` | `/api/trips` | List rides, most recent first |
-| `GET` | `/api/trips/{trip_id}` | Get a ride with its GPS points and interactions |
-
-### Save a ride
-
-```json
-{
-  "started_at": 1784840400000,
-  "ended_at": 1784841000000,
-  "location_points": [
-    {
-      "recorded_at": 1784840400000,
-      "latitude": 50.9851,
-      "longitude": -114.1125,
-      "accuracy": 5.2,
-      "speed": 4.1,
-      "heading": 90
-    }
-  ],
-  "interactions": [
-    {
-      "recorded_at": 1784840405000,
-      "latitude": 50.9852,
-      "longitude": -114.1122,
-      "type": "Greeted me"
-    }
-  ]
-}
-```
-
-## Authentication
-
-The backend verifies Google ID tokens server-side, creates or updates the matching Trail Pulse user, and returns a Trail Pulse JWT. Tokens use the Trail Pulse user ID as their `sub` claim and include an expiration (`exp`). The API reads these values from the root `.env` file:
-
-```env
-JWT_SECRET=replace-with-a-long-random-secret
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=60
-GOOGLE_CLIENT_ID=replace-with-your-google-oauth-client-id
-```
-
-`JWT_SECRET` is required and must never be committed. The repository includes safe placeholders in [.env.example](.env.example).
-
-The mobile Google sign-in UI has not been added yet. `get_current_user()` protects `GET /api/auth/me`; existing trip routes have not been changed by the Google authentication work. New ride creation remains disabled until the mobile client supplies the authenticated user ID; it will not assign new rides to the legacy user.
-
-Google sign-in clients send only the Google ID token to `POST /api/auth/google`:
-
-```json
-{
-  "id_token": "<google-id-token>"
-}
-```
-
-The backend verifies the token signature, audience, issuer, and expiration with Google's `google-auth` library. It never accepts profile information separately from the client.
-
-To smoke-test token creation and validation without touching the database:
+All Expo scripts load `../../.env`; do not create a mobile `.env.local`. Common commands are:
 
 ```bash
-docker compose build api
-docker compose run --rm --no-deps \
-  -e JWT_SECRET='test-only-secret-that-is-at-least-32-bytes' \
-  api python -c 'from app.auth import create_access_token, decode_access_token; token = create_access_token(123); print(token); print(decode_access_token(token))'
+npm run lint
+npm run start -- --clear
+npm run android
+npm run prebuild -- --clean
 ```
 
-The final line should print `123`.
+`npm run android` builds and installs a local Android development build. Run the prebuild command after changing native configuration, including the Android Maps key.
 
-## Database Migrations
+## Google configuration
 
-Alembic owns schema changes. For an existing Trail Pulse database created before migrations, record the original schema as the baseline, then apply the ownership migration:
+Create these clients in one Google Cloud project:
+
+1. Configure the OAuth consent screen and add testers when the app is in testing.
+2. Create a **Web application** OAuth client. Put its client ID in both `GOOGLE_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+3. Create an **Android** OAuth client for package `com.andrewgajetzki.trailpulse` and every signing-certificate SHA-1 used for development, EAS/release, and Google Play.
+4. Enable **Maps SDK for Android** and create a key restricted to that package and its signing certificates. Set it as `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`.
+
+The app sends a Google ID token to `POST /api/auth/google`; the API verifies it, creates or updates the user, creates a default observation profile for a new user, and returns a Trail Pulse JWT.
+
+## Deploy the API
+
+Deploy the repository to a Linux server with Docker, Docker Compose, ports 80 and 443 available, and a DNS record for `SITE_ADDRESS` pointing at the server.
+
+1. Create the server's root `.env` from `.env.example`. Use a production PostgreSQL password and JWT secret, set `SITE_ADDRESS` to the public hostname, and set `EXPO_PUBLIC_API_URL` to `https://<hostname>/api`.
+2. Open inbound TCP ports 80 and 443 (and UDP 443 if your firewall supports HTTP/3).
+3. Start or update the services and run migrations:
 
 ```bash
-docker compose up -d database
-docker compose build api
-docker compose run --rm --no-deps api alembic stamp 20260811_0001
+docker compose up -d --build
 docker compose run --rm --no-deps api alembic upgrade head
+docker compose ps
+curl https://<hostname>/api/health
 ```
 
-For a new, empty database, run only:
+Caddy obtains and renews TLS certificates automatically when `SITE_ADDRESS` is a publicly resolvable hostname and ports 80/443 reach the server. Do not use an IP address as `SITE_ADDRESS` for a public TLS deployment.
+
+For subsequent releases, pull the new revision, update `.env` only when required, then repeat the three commands above. Back up the named `postgres_data` volume before destructive database maintenance.
+
+## Build and release the mobile app
+
+Cloud EAS builds cannot read the ignored local root `.env`. Configure these EAS environment variables for each applicable build environment (development, preview, and production):
+
+- `EXPO_PUBLIC_API_URL`
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`
+
+In `apps/mobile`, sign in and create a build:
+
+```bash
+npx eas-cli login
+npx eas-cli build --platform android --profile preview
+```
+
+Use the `development` profile for a development client, `preview` for internal distribution, and `production` for a store build. The production profile auto-increments the remote app version. Before a store release, ensure the Android OAuth client and Maps key include the EAS/Play signing SHA-1; then submit with:
+
+```bash
+npx eas-cli submit --platform android --profile production
+```
+
+## API overview
+
+All API endpoints are under `/api` at the public proxy. Aside from `/health` and `POST /auth/google`, routes require `Authorization: Bearer <Trail Pulse JWT>`.
+
+| Area | Endpoints |
+| --- | --- |
+| Health and account | `GET /health`, `POST /auth/google`, `GET /auth/me` |
+| Observation profiles | `GET, POST /observation-profiles`, `GET, PATCH /observation-profiles/{id}` |
+| Observation types | `POST /observation-profiles/{id}/types`, `PATCH /observation-types/{id}` |
+| Rides | `GET, POST /trips`, `GET /trips/{id}` |
+
+New rides require an active observation profile, at least one location point, and any observations must use active types belonging to the selected profile.
+
+## Database migrations
+
+Alembic owns schema changes. On an empty database, run:
 
 ```bash
 docker compose run --rm --no-deps api alembic upgrade head
 ```
 
-The ownership migration creates `users`, adds `trips.user_id`, assigns all existing rides to a single `Legacy User`, and then enforces the foreign key without a database default for future rides.
-
-## Database Tables
-
-- `users` stores Trail Pulse account identities and profile details.
-- `trips` stores the beginning and end of each ride.
-- `location_points` stores ordered GPS samples collected during a ride.
-- `interactions` stores greeting results with their time and location.
-
-To open PostgreSQL inside its container:
-
-```bash
-docker compose exec database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
-```
-
-Useful queries:
-
-```sql
-SELECT * FROM trips ORDER BY started_at DESC;
-
-SELECT *
-FROM location_points
-ORDER BY trip_id DESC, sequence_number;
-
-SELECT *
-FROM interactions
-ORDER BY trip_id DESC, recorded_at;
-```
-
-## Planned Improvements
-
-- Offline storage and automatic upload retries
-- Background GPS tracking
-- Ride filters and search
-- Google sign-in integration and authenticated ride creation
+For a database created before Alembic was introduced, follow [the migration verification notes](apps/api/migrations/OBSERVATION_MIGRATION_VERIFICATION.md) and use the appropriate baseline stamp before upgrading.
 
 ## Privacy
 
-Trail Pulse records the rider's route and anonymous observations about brief trail interactions. It does not record names, photographs, audio, or identifying information about other trail users. Treat location data as private and protect it before deploying the app publicly.
+Trail Pulse stores a rider's route and their observations. Location data is sensitive: protect database backups, restrict server access, and obtain appropriate consent before making data available to anyone else.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
