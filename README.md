@@ -2,6 +2,8 @@
 
 Trail Pulse is a mobile app for recording bike rides and location-based trail observations. Riders sign in with Google, choose an observation profile, record GPS points and observations during a ride, then review their history and route maps.
 
+<img width="743" height="659" alt="image" src="https://github.com/user-attachments/assets/59f98107-ae0c-4960-97f7-1597bda88f78" />
+
 ## Architecture
 
 ```text
