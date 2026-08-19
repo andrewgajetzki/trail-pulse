@@ -169,6 +169,10 @@ export default function HomeScreen() {
       setRideActive(false);
       setRideStartedAt(null);
       setActiveProfile(null);
+      setLocationPoints([]);
+      setObservations([]);
+      setCurrentLocation(null);
+      setSavedRideCount((count) => count + 1);
 
       Alert.alert(
           "Ride saved",
