@@ -3,13 +3,12 @@ services:
     image: caddy:2
     container_name: trail-pulse-caddy
     restart: unless-stopped
-
     ports:
       - "80:80"
-
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
     depends_on:
       api:
         condition: service_healthy
